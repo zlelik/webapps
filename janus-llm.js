@@ -105,61 +105,42 @@ async function loadModel() {
     } else {
       logMsg("model loading failed. Check console for details.");
     }
+  }
+}
 
-    /*const model_id = "onnx-community/Janus-1.3B-ONNX";//https://huggingface.co/onnx-community/Janus-1.3B-ONNX
-    processor = await AutoProcessor.from_pretrained(model_id);
-    logMsg("processor is loaded");
-    logMsg("Start loading the model");
+async function loadModelWithFallback() {
+  const model_id = "onnx-community/Janus-1.3B-ONNX";//https://huggingface.co/onnx-community/Janus-1.3B-ONNX
+  const fallbackPrecisions = getSelectedPrecisions();
+  logMsg("User selected this presisions", fallbackPrecisions);
+
+  let lastError = null;
+
+  processor = await AutoProcessor.from_pretrained(model_id);
+  
+  for (const [i, dtypeConfig] of fallbackPrecisions.entries()) {
     try {
-      logMsg("Try to load fp16 model");
+      logMsg(`Trying to load model on device: ${selectedDevice} with precision set ${i + 1}: ${JSON.stringify(dtypeConfig)}`);
+
       model = await MultiModalityCausalLM.from_pretrained(model_id, {
-        dtype: {
-          prepare_inputs_embeds: "fp16",//fp32 does not work, fp16 works.
-          language_model: "fp16",
-          lm_head: "fp16",
-          gen_head: "fp16",
-          gen_img_embeds: "fp16",
-          image_decode: "fp32",
-        },
+        dtype: dtypeConfig,
         device: {
-          prepare_inputs_embeds: "wasm", // TODO use "webgpu" when bug is fixed
-          language_model: "webgpu",
-          lm_head: "webgpu",
-          gen_head: "webgpu",
-          gen_img_embeds: "webgpu",
-          image_decode: "webgpu",
+          prepare_inputs_embeds: "wasm", // safer for small modules
+          language_model: selectedDevice,
+          lm_head: selectedDevice,
+          gen_head: selectedDevice,
+          gen_img_embeds: selectedDevice,
+          image_decode: selectedDevice,
         }
       });
-    } catch (err1) {
-      logMsg(`Error happened while loading fp16 model: ${err1.message}`, err1, true, true);
-      try {
-        logMsg("Try to load q4 model");
-        model = await MultiModalityCausalLM.from_pretrained(model_id, {
-          dtype: {
-            prepare_inputs_embeds: "q4",
-            language_model: "q4",
-            lm_head: "q4",
-            gen_head: "q4",
-            gen_img_embeds: "q4",
-            image_decode: "fp32",
-          },
-          device: {
-            prepare_inputs_embeds: "wasm", // TODO use "webgpu" when bug is fixed
-            language_model: "webgpu",
-            lm_head: "webgpu",
-            gen_head: "webgpu",
-            gen_img_embeds: "webgpu",
-            image_decode: "webgpu",
-          }
-        });
-      } catch (err2) {
-        logMsg(`Error happened while loading q4 model: ${err2.message}`, err2, true, true);
-      }
+
+      logMsg(`Loaded model successfully with config ${i + 1}`);
+      return model;
+    } catch (err) {
+      lastError = err;
+      logMsg(`Failed with config ${i + 1}: ${err.message}`, err, true, true);
     }
-    logMsg("model is loaded");
-    */
-    
   }
+  logMsg(`All fallback attempts failed. Last error: ${lastError?.message}`, lastError, true, true);
 }
 
 async function generateImage(appendImage) {
@@ -218,39 +199,6 @@ async function generateImage(appendImage) {
   }
 }
 
-async function loadModelWithFallback() {
-  const model_id = "onnx-community/Janus-1.3B-ONNX";//https://huggingface.co/onnx-community/Janus-1.3B-ONNX
-  const fallbackPrecisions = getSelectedPrecisions();
-  logMsg("User selected this presisions", fallbackPrecisions);
-
-  let lastError = null;
-
-  for (const [i, dtypeConfig] of fallbackPrecisions.entries()) {
-    try {
-      logMsg(`Trying to load model on device: ${selectedDevice} with precision set ${i + 1}: ${JSON.stringify(dtypeConfig)}`);
-
-      model = await MultiModalityCausalLM.from_pretrained(model_id, {
-        dtype: dtypeConfig,
-        device: {
-          prepare_inputs_embeds: "wasm", // safer for small modules
-          language_model: selectedDevice,
-          lm_head: selectedDevice,
-          gen_head: selectedDevice,
-          gen_img_embeds: selectedDevice,
-          image_decode: selectedDevice,
-        }
-      });
-
-      logMsg(`Loaded model successfully with config ${i + 1}`);
-      return model;
-    } catch (err) {
-      lastError = err;
-      logMsg(`Failed with config ${i + 1}: ${err.message}`, err, true, true);
-    }
-  }
-  logMsg(`All fallback attempts failed. Last error: ${lastError?.message}`, lastError, true, true);
-}
-
 function getSelectedPrecisions() {
   const selectedIndices = Array.from(selectPrecisionEl.selectedOptions).map(opt => parseInt(opt.value));
 
@@ -303,6 +251,7 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 
 }
+
 
 
 
