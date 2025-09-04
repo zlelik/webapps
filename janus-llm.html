@@ -16,6 +16,11 @@
   <option value="wasm">CPU</option>
 </select>
 <br/>
+
+<label for="precision_select">Select model precisions to try (highest precision first):</label>
+<select id="precision_select" multiple size="7">
+</select>
+<br/>
 <button id="load_model_btn" onClick="loadModel()" disabled>Load model</button>
 <br/>
 <button id="gen_btn" onClick="generateImage(false)" disabled>Generate Image</button>
@@ -36,6 +41,7 @@
 </body>
 
 </html>
+
 
 
 
