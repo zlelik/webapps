@@ -208,7 +208,7 @@ async function loadModelWithFallback() {
 
   for (const [i, dtypeConfig] of fallbackPrecisions.entries()) {
     try {
-      logMsg(`Trying to load model with precision set ${i + 1}: ${JSON.stringify(dtypeConfig)}`);
+      logMsg(`Trying to load model on device: ${selectedDevice} with precision set ${i + 1}: ${JSON.stringify(dtypeConfig)}`);
 
       model = await MultiModalityCausalLM.from_pretrained(model_id, {
         dtype: dtypeConfig,
@@ -272,6 +272,7 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 
 }
+
 
 
 
