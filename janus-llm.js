@@ -278,7 +278,10 @@ function clearConsoleDiv() {
   document.getElementById("console_output").innerHTML = "";
 }
 
-function loadingProgressCallback({ file, progress }) {
-  const percent = (progress * 100).toFixed(1);
-  logMsg(`Loading ${file}: ${percent}%`);
+function loadingProgressCallback(progressInfo) {
+  logMsg(`Loading progress`, progressInfo);
+  //{ file, progress }
+  //const percent = (progress * 100).toFixed(1);
+  //logMsg(`Loading ${file}: ${percent}%`);
 }
+
