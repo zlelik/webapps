@@ -94,6 +94,9 @@ window.addEventListener('load', async function() {
 async function loadModel() {
   if (window.pipeline) {
     logMsg("window.pipeline is defined");
+    loadModelBtnEl.disabled = true;
+    await sleep(100);
+    
     selectedDevice = document.getElementById("device_select").value;
 
     await loadModelWithFallback();
@@ -104,6 +107,7 @@ async function loadModel() {
       logMsg("model is loaded successfully");
     } else {
       logMsg("model loading failed. Check console for details.");
+      loadModelBtnEl.disabled = false;
     }
   }
 }
@@ -144,10 +148,8 @@ async function loadModelWithFallback() {
 }
 
 async function generateImage(appendImage) {
-  setTimeout(() => {
-    generateBtnEl.disabled = true;
-    generateAppendBtnEl.disabled = true;
-  }, 20)
+  generateBtnEl.disabled = true;
+  generateAppendBtnEl.disabled = true;
   await sleep(100);
   try {
     const promptText = document.getElementById("prompt_text").value;
@@ -249,12 +251,25 @@ function getCurrDateAsString(isISO8601DateFormat = false) {
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
-
 }
 
+function duplicateConsole() {
+  const outputDiv = document.getElementById("console_output");
+  
+  ["log", "warn", "error", "debug", "info"].forEach(method => {
+    const original = console[method]; // save original
+    
+    console[method] = (...args) => {
+      // Convert all arguments to string (objects → JSON)
+      const msg = args.map(a => (typeof a === "object" ? JSON.stringify(a) : a)).join(" ");
+      const p = document.createElement("div");
+      p.textContent = msg;
+      outputDiv.appendChild(p);
+      
+      // Call original console method
+      original.apply(console, args);
+    };
+  });
+}
 
-
-
-
-
-
+duplicateConsole();
