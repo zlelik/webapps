@@ -10,8 +10,6 @@ window.addEventListener('load', async function() {
   logMsg("window loaded");
   if (window.pipeline) {
     loadModelBtnEl.disabled = false;
-    generateBtnEl.disabled = false;
-    generateAppendBtnEl.disabled = false;
   } else {
     logMsg("window.HFPipeline is not defined");
   }
@@ -24,6 +22,9 @@ async function loadModel() {
 
     await loadModelWithFallback();
     if (model) {
+      loadModelBtnEl.disabled = true;
+      generateBtnEl.disabled = false;
+      generateAppendBtnEl.disabled = false;
       logMsg("model is loaded successfully");
     } else {
       logMsg("model loading failed. Check console for details.");
@@ -136,7 +137,7 @@ async function generateImage(appendImage) {
     logMsg(`Error happened: ${err.message}`, err, true, true)
   } finally {
     logMsg("Processing Finished");
-    document.getElementById("gen_btn").disabled = false;
+    generateBtnEl.disabled = false;
     generateAppendBtnEl.disabled = false;
   }
 }
@@ -271,6 +272,7 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 
 }
+
 
 
 
