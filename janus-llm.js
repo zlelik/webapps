@@ -280,9 +280,9 @@ function clearConsoleDiv() {
 
 function loadingProgressCallback(progressInfo) {
   //logMsg(`Loading progress`, progressInfo);
-  const loadProgressEl = document?.getElementById("load_progress");
-  loadProgressEl?.innerHTML = `${progressInfo?.progress?.toFixed(2)}% [${progressInfo?.file}]`;
+  document.getElementById("load_progress").innerHTML = `${progressInfo?.progress?.toFixed(2)}% [${progressInfo?.file}]`;
 }
+
 
 
 
