@@ -51,7 +51,7 @@ window.addEventListener('load', async function() {
         }
       });
     } catch (err1) {
-      logMsg(`Error happened while loading fp16 model: ${err1.message}`, err, true, true);
+      logMsg(`Error happened while loading fp16 model: ${err1.message}`, err1, true, true);
       try {
         logMsg("Try to load q4 model");
         model = await MultiModalityCausalLM.from_pretrained(model_id, {
@@ -74,7 +74,7 @@ window.addEventListener('load', async function() {
           }
         });
       } catch (err2) {
-        logMsg(`Error happened while loading q4 model: ${err2.message}`, err, true, true);
+        logMsg(`Error happened while loading q4 model: ${err2.message}`, err2, true, true);
       }
     }
     
@@ -182,3 +182,4 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 
 }
+
