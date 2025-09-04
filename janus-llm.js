@@ -136,7 +136,7 @@ async function loadModelWithFallback() {
           gen_img_embeds: selectedDevice,
           image_decode: selectedDevice,
         },
-        loadingProgressCallback
+        progress_callback: loadingProgressCallback
       });
 
       logMsg(`Loaded model successfully with config ${i + 1}`);
@@ -284,4 +284,5 @@ function loadingProgressCallback(progressInfo) {
   //const percent = (progress * 100).toFixed(1);
   //logMsg(`Loading ${file}: ${percent}%`);
 }
+
 
