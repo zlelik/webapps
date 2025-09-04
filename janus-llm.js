@@ -12,8 +12,10 @@ window.addEventListener('load', async function() {
     processor = await AutoProcessor.from_pretrained(model_id);
     logMsg("processor is loaded");
     logMsg("Start loading the model");
-    model = await MultiModalityCausalLM.from_pretrained(model_id, {
-      dtype: {
+    try {
+      logMsg("Try to load fp16 model");
+      model = await MultiModalityCausalLM.from_pretrained(model_id, {
+        dtype: {
         // everything is set to q4, supposed to be smallest model. total model size - 2.1GB
         /*prepare_inputs_embeds: "q4",
         language_model: "q4",
@@ -38,16 +40,43 @@ window.addEventListener('load', async function() {
         gen_head: "fp16",
         gen_img_embeds: "fp16",
         image_decode: "fp32",
-      },
-      device: {
+        },
+        device: {
         prepare_inputs_embeds: "wasm", // TODO use "webgpu" when bug is fixed
         language_model: "webgpu",
         lm_head: "webgpu",
         gen_head: "webgpu",
         gen_img_embeds: "webgpu",
         image_decode: "webgpu",
+        }
+      });
+    } catch (err1) {
+      logMsg(`Error happened while loading fp16 model: ${err1.message}`, err, true, true);
+      try {
+        logMsg("Try to load q4 model");
+        model = await MultiModalityCausalLM.from_pretrained(model_id, {
+          dtype: {
+            // everything is set to q4, supposed to be smallest model. total model size - 2.1GB
+            prepare_inputs_embeds: "q4",
+            language_model: "q4",
+            lm_head: "q4",
+            gen_head: "q4",
+            gen_img_embeds: "q4",
+            image_decode: "q4",
+          },
+          device: {
+            prepare_inputs_embeds: "wasm", // TODO use "webgpu" when bug is fixed
+            language_model: "webgpu",
+            lm_head: "webgpu",
+            gen_head: "webgpu",
+            gen_img_embeds: "webgpu",
+            image_decode: "webgpu",
+          }
+        });
+      } catch (err2) {
+        logMsg(`Error happened while loading q4 model: ${err2.message}`, err, true, true);
       }
-    });
+    }
     
     logMsg("model is loaded");
     generateBtnEl.disabled = false;
@@ -105,7 +134,7 @@ async function generateImage(appendImage) {
       document.body.appendChild(img);
     }
   } catch (err) {
-    logMsg(`Error happened: ${err.generateBtnEl}`, err, true, true)
+    logMsg(`Error happened: ${err.message}`, err, true, true)
   } finally {
     logMsg("Processing Finished");
     document.getElementById("gen_btn").disabled = false;
@@ -151,4 +180,5 @@ function getCurrDateAsString(isISO8601DateFormat = false) {
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
+
 }
