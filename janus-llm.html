@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Test Hugging Face models and transformers.js</title>
+</head>
+
+<body>
+<textarea cols="60" rows="20" id="prompt_text">A photorealistic portrait image of the beautiful cat in the foreground and the sandy beach with the sea on the background.</textarea>
+<br/>
+<button id="gen_btn" onClick="generateImage(false)" disabled>Generate Image</button>
+<button id="gen_add_btn" onClick="generateImage(true)" disabled>Generate Image and Append</button>
+<br/>
+<img id="generated_img"/>
+<script type="module">
+  import { pipeline, AutoProcessor, MultiModalityCausalLM, BaseStreamer, TextStreamer, InterruptableStoppingCriteria} from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.2';
+  window.pipeline = pipeline;
+  window.AutoProcessor = AutoProcessor;
+  window.MultiModalityCausalLM = MultiModalityCausalLM;
+  window.BaseStreamer = BaseStreamer;
+  window.TextStreamer = TextStreamer;
+  window.InterruptableStoppingCriteria = InterruptableStoppingCriteria;
+</script>
+<script src="janus-llm.js"></script>
+
+</body>
+
+</html>
