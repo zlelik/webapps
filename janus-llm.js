@@ -4,12 +4,88 @@ let model = null;
 let loadModelBtnEl = document.getElementById("load_model_btn");
 let generateBtnEl = document.getElementById("gen_btn");
 let generateAppendBtnEl = document.getElementById("gen_add_btn");
+let selectPrecisionEl = document.getElementById("precision_select")
 let selectedDevice = "webgpu";
+
+const ALL_POSSIBLE_FALLBACK_PRECISIONS = [
+  {
+    label: "FP32 model",
+    prepare_inputs_embeds: "fp32",
+    language_model: "fp32",
+    lm_head: "fp32",
+    gen_head: "fp32",
+    gen_img_embeds: "fp32",
+    image_decode: "fp32",
+  },
+  {
+    label: "FP16 model",
+    prepare_inputs_embeds: "fp16",
+    language_model: "fp16",
+    lm_head: "fp16",
+    gen_head: "fp16",
+    gen_img_embeds: "fp16",
+    image_decode: "fp32",
+  },
+  {
+    label: "INT8 model",
+    prepare_inputs_embeds: "int8",
+    language_model: "int8",
+    lm_head: "int8",
+    gen_head: "int8",
+    gen_img_embeds: "int8",
+    image_decode: "fp32",
+  },
+  {
+    label: "UINT8 model",
+    prepare_inputs_embeds: "uint8",
+    language_model: "uint8",
+    lm_head: "uint8",
+    gen_head: "uint8",
+    gen_img_embeds: "uint8",
+    image_decode: "fp32",
+  },
+  {
+    label: "Q4 model",
+    prepare_inputs_embeds: "q4",
+    language_model: "q4",
+    lm_head: "q4",
+    gen_head: "q4",
+    gen_img_embeds: "q4",
+    image_decode: "fp32",
+  },
+  {
+    label: "Q4+FP16 model",
+    prepare_inputs_embeds: "q4f16",
+    language_model: "q4f16",
+    lm_head: "q4f16",
+    gen_head: "q4f16",
+    gen_img_embeds: "q4f16",
+    image_decode: "fp32",
+  },
+  {
+    label: "BNB4 model",
+    prepare_inputs_embeds: "bnb4",
+    language_model: "bnb4",
+    lm_head: "bnb4",
+    gen_head: "bnb4",
+    gen_img_embeds: "bnb4",
+    image_decode: "fp32",
+  },
+];
+
 
 window.addEventListener('load', async function() {
   logMsg("window loaded");
   if (window.pipeline) {
     loadModelBtnEl.disabled = false;
+
+    // initializa list with model precisions
+    ALL_POSSIBLE_FALLBACK_PRECISIONS.forEach((cfg, index) => {
+      const option = document.createElement("option");
+      option.value = index;
+      option.textContent = cfg.label;
+      selectPrecisionEl.appendChild(option);
+    });
   } else {
     logMsg("window.HFPipeline is not defined");
   }
@@ -144,65 +220,8 @@ async function generateImage(appendImage) {
 
 async function loadModelWithFallback() {
   const model_id = "onnx-community/Janus-1.3B-ONNX";//https://huggingface.co/onnx-community/Janus-1.3B-ONNX
-  const fallbackPrecisions = [
-    // highest precision first
-    {
-      prepare_inputs_embeds: "fp32",
-      language_model: "fp32",
-      lm_head: "fp32",
-      gen_head: "fp32",
-      gen_img_embeds: "fp32",
-      image_decode: "fp32",
-    },
-    {
-      prepare_inputs_embeds: "fp16",
-      language_model: "fp16",
-      lm_head: "fp16",
-      gen_head: "fp16",
-      gen_img_embeds: "fp16",
-      image_decode: "fp32", // image decode usually needs higher precision
-    },
-    {
-      prepare_inputs_embeds: "int8",
-      language_model: "int8",
-      lm_head: "int8",
-      gen_head: "int8",
-      gen_img_embeds: "int8",
-      image_decode: "fp32",
-    },
-    {
-      prepare_inputs_embeds: "uint8",
-      language_model: "uint8",
-      lm_head: "uint8",
-      gen_head: "uint8",
-      gen_img_embeds: "uint8",
-      image_decode: "fp32",
-    },
-    {
-      prepare_inputs_embeds: "q4",
-      language_model: "q4",
-      lm_head: "q4",
-      gen_head: "q4",
-      gen_img_embeds: "q4",
-      image_decode: "fp32",
-    },
-    {
-      prepare_inputs_embeds: "q4f16",
-      language_model: "q4f16",
-      lm_head: "q4f16",
-      gen_head: "q4f16",
-      gen_img_embeds: "q4f16",
-      image_decode: "fp32",
-    },
-    {
-      prepare_inputs_embeds: "bnb4",
-      language_model: "bnb4",
-      lm_head: "bnb4",
-      gen_head: "bnb4",
-      gen_img_embeds: "bnb4",
-      image_decode: "fp32",
-    },
-  ];
+  const fallbackPrecisions = getSelectedPrecisions();
+  logMsg("User selected this presisions", fallbackPrecisions);
 
   let lastError = null;
 
@@ -230,6 +249,18 @@ async function loadModelWithFallback() {
     }
   }
   logMsg(`All fallback attempts failed. Last error: ${lastError?.message}`, lastError, true, true);
+}
+
+function getSelectedPrecisions() {
+  const selectedIndices = Array.from(selectPrecisionEl.selectedOptions).map(opt => parseInt(opt.value));
+
+  // Remove 'label' for the final array
+  const fallbackPrecisions = selectedIndices.map(i => {
+    const { label, ...cfg } = ALL_POSSIBLE_FALLBACK_PRECISIONS[i];
+    return cfg;
+  });
+
+  return fallbackPrecisions;
 }
 
 function logMsg(msg, objectToLog = null, isError = false, forceDebug = false) {
@@ -272,6 +303,7 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 
 }
+
 
 
 
