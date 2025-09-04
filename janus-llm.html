@@ -10,6 +10,13 @@
 <body>
 <textarea cols="60" rows="20" id="prompt_text">A photorealistic portrait image of the beautiful cat in the foreground and the sandy beach with the sea on the background.</textarea>
 <br/>
+<label for="device_select">Select device:</label>
+<select id="device_select">
+  <option value="webgpu" selected>GPU (Video card)</option>
+  <option value="wasm">CPU</option>
+</select>
+<br/>
+<button id="load_model_btn" onClick="loadModel(false)" disabled>Generate Image</button>
 <button id="gen_btn" onClick="generateImage(false)" disabled>Generate Image</button>
 <button id="gen_add_btn" onClick="generateImage(true)" disabled>Generate Image and Append</button>
 <br/>
@@ -28,3 +35,4 @@
 </body>
 
 </html>
+
