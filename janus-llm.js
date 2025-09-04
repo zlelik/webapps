@@ -16,38 +16,20 @@ window.addEventListener('load', async function() {
       logMsg("Try to load fp16 model");
       model = await MultiModalityCausalLM.from_pretrained(model_id, {
         dtype: {
-        // everything is set to q4, supposed to be smallest model. total model size - 2.1GB
-        /*prepare_inputs_embeds: "q4",
-        language_model: "q4",
-        lm_head: "q4",
-        gen_head: "q4",
-        gen_img_embeds: "q4",
-        image_decode: "q4", // or keep fp32 if needed*/
-        
-        // settings from official example. total model size - 2.4GB. Works on my Lenovoi Laptop!!!
-        /*prepare_inputs_embeds: "q4",
-        language_model: "q4f16",
-        lm_head: "fp16",
-        gen_head: "fp16",
-        gen_img_embeds: "fp16",
-        image_decode: "fp32",*/
-        
-        // different tests.
-        // this is the highest working model. any changes to fp32 does not work.
-        prepare_inputs_embeds: "fp16",//fp32 does not work, fp16 works.
-        language_model: "fp16",
-        lm_head: "fp16",
-        gen_head: "fp16",
-        gen_img_embeds: "fp16",
-        image_decode: "fp32",
+          prepare_inputs_embeds: "fp16",//fp32 does not work, fp16 works.
+          language_model: "fp16",
+          lm_head: "fp16",
+          gen_head: "fp16",
+          gen_img_embeds: "fp16",
+          image_decode: "fp32",
         },
         device: {
-        prepare_inputs_embeds: "wasm", // TODO use "webgpu" when bug is fixed
-        language_model: "webgpu",
-        lm_head: "webgpu",
-        gen_head: "webgpu",
-        gen_img_embeds: "webgpu",
-        image_decode: "webgpu",
+          prepare_inputs_embeds: "wasm", // TODO use "webgpu" when bug is fixed
+          language_model: "webgpu",
+          lm_head: "webgpu",
+          gen_head: "webgpu",
+          gen_img_embeds: "webgpu",
+          image_decode: "webgpu",
         }
       });
     } catch (err1) {
@@ -56,13 +38,12 @@ window.addEventListener('load', async function() {
         logMsg("Try to load q4 model");
         model = await MultiModalityCausalLM.from_pretrained(model_id, {
           dtype: {
-            // everything is set to q4, supposed to be smallest model. total model size - 2.1GB
             prepare_inputs_embeds: "q4",
             language_model: "q4",
             lm_head: "q4",
             gen_head: "q4",
             gen_img_embeds: "q4",
-            image_decode: "q4",
+            image_decode: "fp32",
           },
           device: {
             prepare_inputs_embeds: "wasm", // TODO use "webgpu" when bug is fixed
@@ -182,4 +163,5 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 
 }
+
 
