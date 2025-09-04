@@ -116,7 +116,7 @@ async function loadModel() {
 async function loadModelWithFallback() {
   const model_id = "onnx-community/Janus-1.3B-ONNX";//https://huggingface.co/onnx-community/Janus-1.3B-ONNX
   const fallbackPrecisions = getSelectedPrecisions();
-  logMsg("User selected this presisions", fallbackPrecisions);
+  logMsg("User selected this precisions", fallbackPrecisions);
 
   let lastError = null;
 
@@ -276,3 +276,4 @@ function duplicateConsole() {
 function clearConsoleDiv() {
   document.getElementById("console_output").innerHTML = "";
 }
+
