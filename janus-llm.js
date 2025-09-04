@@ -75,8 +75,8 @@ const ALL_POSSIBLE_FALLBACK_PRECISIONS = [
 
 
 window.addEventListener('load', async function() {
-  logMsg("window loaded");
   duplicateConsole();
+  logMsg("window loaded");
   if (window.pipeline) {
     loadModelBtnEl.disabled = false;
 
@@ -271,4 +271,8 @@ function duplicateConsole() {
       original.apply(console, args);
     };
   });
+}
+
+function clearConsoleDiv() {
+  document.getElementById("console_output").innerHTML = "";
 }
