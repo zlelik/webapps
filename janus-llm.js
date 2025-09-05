@@ -331,12 +331,8 @@ function clearConsoleDiv() {
 
 function loadingProgressCallback(progressInfo) {
   //logMsg(`Loading progress`, progressInfo);
-  document.getElementById("load_progress").innerHTML = `${progressInfo?.progress?.toFixed(2)}% [${progressInfo?.file}]`;
+  //progressInfo obje example: obj{"status":"progress","name":"onnx-community/Janus-1.3B-ONNX","file":"generation_config.json","progress":100,"loaded":167,"total":167}'
+  if (progressInfo?.status == "progress") {
+    document.getElementById("load_progress").innerHTML = `${progressInfo?.progress?.toFixed(2)}% [${progressInfo?.file}]`;
+  }
 }
-
-
-
-
-
-
-
