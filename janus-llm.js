@@ -4,6 +4,8 @@ let model = null;
 let loadModelBtnEl = document.getElementById("load_model_btn");
 let generateBtnEl = document.getElementById("gen_btn");
 let generateAppendBtnEl = document.getElementById("gen_add_btn");
+let generateTextAnswerBtnEl = document.getElementById("gen_text_btn");
+
 let selectPrecisionEl = document.getElementById("precision_select")
 let selectedDevice = "webgpu";
 
@@ -105,6 +107,7 @@ async function loadModel() {
       loadModelBtnEl.disabled = true;
       generateBtnEl.disabled = false;
       generateAppendBtnEl.disabled = false;
+      generateTextAnswerBtnEl.disabled = false;
       logMsg("model is loaded successfully");
     } else {
       logMsg("model loading failed. Check console for details.");
@@ -152,6 +155,7 @@ async function loadModelWithFallback() {
 async function generateImage(appendImage) {
   generateBtnEl.disabled = true;
   generateAppendBtnEl.disabled = true;
+  generateTextAnswerBtnEl.disabled = true;
   await sleep(100);
   try {
     const promptText = document.getElementById("prompt_text").value;
@@ -195,11 +199,58 @@ async function generateImage(appendImage) {
       document.body.appendChild(img);
     }
   } catch (err) {
-    logMsg(`Error happened: ${err.message}`, err, true, true)
+    logMsg(`Error happened while generating image: ${err.message}`, err, true, true)
   } finally {
-    logMsg("Processing Finished");
+    logMsg("Processing Finished (generating image)");
     generateBtnEl.disabled = false;
     generateAppendBtnEl.disabled = false;
+    generateTextAnswerBtnEl.disabled = false;
+  }
+}
+
+function generateTextAnswer() {
+  generateBtnEl.disabled = true;
+  generateAppendBtnEl.disabled = true;
+  generateTextAnswerBtnEl.disabled = true;
+
+  await sleep(100);
+  try {
+    const promptText = document.getElementById("prompt_text").value;
+    logMsg(`promptText: ${promptText}`);
+
+    // Prepare inputs
+    const conversation = [
+      {
+        role: "User",
+        content: promptText
+      },
+    ];
+
+    const inputs = await processor(conversation);
+    logMsg("inputs are created");
+    
+    // Generate response
+    const outputs = await model.generate({
+      ...inputs,
+      max_new_tokens: 150,
+      do_sample: false,
+    });
+    logMsg("outputs are generated");
+
+    // Decode output
+    const new_tokens = outputs.slice(null, [inputs.input_ids.dims.at(-1), null]);
+    const decoded = processor.batch_decode(new_tokens, { skip_special_tokens: true });
+    const answer = decoded[0];
+    logMsg(`answer: ${answer}`);
+    const textAnswerDiv = document.getElementById("generated_text_answer");
+    textAnswerDiv.textContent = answer;
+  } catch catch (err) {
+    logMsg(`Error happened while generating text answer: ${err.message}`, err, true, true)
+  } finally {
+    logMsg("Processing Finished (generating text answer)");
+    generateBtnEl.disabled = false;
+    generateAppendBtnEl.disabled = false;
+    generateTextAnswerBtnEl.disabled = false;
   }
 }
 
@@ -282,6 +333,7 @@ function loadingProgressCallback(progressInfo) {
   //logMsg(`Loading progress`, progressInfo);
   document.getElementById("load_progress").innerHTML = `${progressInfo?.progress?.toFixed(2)}% [${progressInfo?.file}]`;
 }
+
 
 
 
