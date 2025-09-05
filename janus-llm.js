@@ -208,7 +208,7 @@ async function generateImage(appendImage) {
   }
 }
 
-function generateTextAnswer() {
+await function generateTextAnswer() {
   generateBtnEl.disabled = true;
   generateAppendBtnEl.disabled = true;
   generateTextAnswerBtnEl.disabled = true;
@@ -336,3 +336,4 @@ function loadingProgressCallback(progressInfo) {
     document.getElementById("load_progress").innerHTML = `${progressInfo?.progress?.toFixed(2)}% [${progressInfo?.file}]`;
   }
 }
+
