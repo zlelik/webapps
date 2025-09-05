@@ -244,7 +244,7 @@ async function generateTextAnswer() {
     logMsg(`answer: ${answer}`);
     const textAnswerDiv = document.getElementById("generated_text_answer");
     textAnswerDiv.textContent = answer;
-  } catch catch (err) {
+  } catch (err) {
     logMsg(`Error happened while generating text answer: ${err.message}`, err, true, true)
   } finally {
     logMsg("Processing Finished (generating text answer)");
@@ -336,5 +336,6 @@ function loadingProgressCallback(progressInfo) {
     document.getElementById("load_progress").innerHTML = `${progressInfo?.progress?.toFixed(2)}% [${progressInfo?.file}]`;
   }
 }
+
 
 
