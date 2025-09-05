@@ -28,8 +28,10 @@
 <button id="gen_btn" onClick="generateImage(false)" disabled>Generate Image</button>
 <button id="gen_add_btn" onClick="generateImage(true)" disabled>Generate Image and Append</button>
 <br/>
+<button id="gen_text_btn" onClick="generateTextAnswer()" disabled>Generate Text Answer</button>
 <img id="generated_img"/>
-
+Generated Text Answer:
+<div id="generated_text_answer" style="width:90%; height:200px; overflow:auto; border:1px solid #ccc; padding:5px; font-family:monospace;"></div>
 
 <script type="module">
   import { pipeline, AutoProcessor, MultiModalityCausalLM, BaseStreamer, TextStreamer, InterruptableStoppingCriteria} from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.2';
@@ -47,6 +49,7 @@ Browser console content <button onClick="clearConsoleDiv()">Clear Console</butto
 </body>
 
 </html>
+
 
 
 
