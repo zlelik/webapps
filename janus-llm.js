@@ -20,6 +20,15 @@ const ALL_POSSIBLE_FALLBACK_PRECISIONS = [
     image_decode: "fp32",
   },
   {
+    label: "FP32-Q4 combination",
+    prepare_inputs_embeds: "fp32",
+    language_model: "q4",
+    lm_head: "fp32",
+    gen_head: "fp32",
+    gen_img_embeds: "fp32",
+    image_decode: "fp32"
+  },
+  {
     label: "FP16 model",
     prepare_inputs_embeds: "fp16",
     language_model: "fp16",
@@ -27,6 +36,15 @@ const ALL_POSSIBLE_FALLBACK_PRECISIONS = [
     gen_head: "fp16",
     gen_img_embeds: "fp16",
     image_decode: "fp32",
+  },
+  {
+    label: "FP16-Q4 combination",
+    prepare_inputs_embeds: "q4",
+    language_model: "q4f16",
+    lm_head: "fp16",
+    gen_head: "fp16",
+    gen_img_embeds: "fp16",
+    image_decode: "fp32"
   },
   {
     label: "INT8 model",
@@ -336,6 +354,7 @@ function loadingProgressCallback(progressInfo) {
     document.getElementById("load_progress").innerHTML = `${progressInfo?.progress?.toFixed(2)}% [${progressInfo?.file}]`;
   }
 }
+
 
 
 
