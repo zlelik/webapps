@@ -5,6 +5,8 @@ let loadModelBtnEl = document.getElementById("load_model_btn");
 let generateBtnEl = document.getElementById("gen_btn");
 let generateAppendBtnEl = document.getElementById("gen_add_btn");
 let generateTextAnswerBtnEl = document.getElementById("gen_text_btn");
+let generateTextAnswerByImageBtnEl = document.getElementById("gen_text_by_img_btn");
+let imageInputEl = document.getElementById("prompt_img");
 
 let selectPrecisionEl = document.getElementById("precision_select")
 let selectedDevice = "webgpu";
@@ -123,9 +125,7 @@ async function loadModel() {
     await loadModelWithFallback();
     if (model) {
       loadModelBtnEl.disabled = true;
-      generateBtnEl.disabled = false;
-      generateAppendBtnEl.disabled = false;
-      generateTextAnswerBtnEl.disabled = false;
+      toggleGenerateButtonsDisableEnableState(false);
       logMsg("model is loaded successfully");
     } else {
       logMsg("model loading failed. Check console for details.");
@@ -171,9 +171,7 @@ async function loadModelWithFallback() {
 }
 
 async function generateImage(appendImage) {
-  generateBtnEl.disabled = true;
-  generateAppendBtnEl.disabled = true;
-  generateTextAnswerBtnEl.disabled = true;
+  toggleGenerateButtonsDisableEnableState(true);
   await sleep(100);
   try {
     const promptText = document.getElementById("prompt_text").value;
@@ -185,56 +183,60 @@ async function generateImage(appendImage) {
         content: promptText
       },
     ];
-    const inputs = await processor(conversation, { chat_template: "text_to_image" });
-    logMsg("inputs are created");
+    let imgCount = appendImage ? 10 : 1;
 
-    // Generate response
-    const num_image_tokens = processor.num_image_tokens;
-    logMsg(`num_image_tokens: ${num_image_tokens}`);
-    const outputs = await model.generate_images({
-      ...inputs,
-      min_new_tokens: num_image_tokens,
-      max_new_tokens: num_image_tokens,
-      do_sample: true,
-    });
-    logMsg("outputs are generated");
+    for (let i = 0; i < imgCount; i++) {
+      logMsg(`try to generate image number: ${i}`);
+      const inputs = await processor(conversation, { chat_template: "text_to_image" });
+      logMsg("inputs are created");
 
-    // Save the generated image
-    //await outputs[0].save("test.png");//this call initiates image download in browser
+      // Generate response
+      const num_image_tokens = processor.num_image_tokens;
+      logMsg(`num_image_tokens: ${num_image_tokens}`);
+      const outputs = await model.generate_images({
+        ...inputs,
+        min_new_tokens: num_image_tokens,
+        max_new_tokens: num_image_tokens,
+        do_sample: true,
+        //guidance_scale: 4,
+        //temperature: 0.01,  // <1 = more precise. default 1
+        //top_p: 0.01,        // <1 = more selective. default 1
+      });
+      logMsg("outputs are generated");
+
+      // Save the generated image
+      //await outputs[0].save("test.png");//this call initiates image download in browser
 
 
-    const blob = await outputs[0].toBlob();
-    const dataUrl = URL.createObjectURL(blob);
+      const blob = await outputs[0].toBlob();
+      const dataUrl = URL.createObjectURL(blob);
 
-    // Find the existing <img> element and replace its content
-    const imgEl = document.getElementById("generated_img");
-    if (!appendImage) {
-      imgEl.src = dataUrl;
-    } else {
-      const img = document.createElement("img");
-      img.src = dataUrl;
-      img.style.maxWidth = "512px"; // optional styling
-      document.body.appendChild(img);
+      // Find the existing <img> element and replace its content
+      const imgEl = document.getElementById("generated_img");
+      if (!appendImage) {
+        imgEl.src = dataUrl;
+      } else {
+        const img = document.createElement("img");
+        img.src = dataUrl;
+        img.style.maxWidth = "512px"; // optional styling
+        document.body.appendChild(img);
+      }
     }
   } catch (err) {
     logMsg(`Error happened while generating image: ${err.message}`, err, true, true)
   } finally {
     logMsg("Processing Finished (generating image)");
-    generateBtnEl.disabled = false;
-    generateAppendBtnEl.disabled = false;
-    generateTextAnswerBtnEl.disabled = false;
+    toggleGenerateButtonsDisableEnableState(false);
   }
 }
 
 async function generateTextAnswer() {
-  generateBtnEl.disabled = true;
-  generateAppendBtnEl.disabled = true;
-  generateTextAnswerBtnEl.disabled = true;
+  toggleGenerateButtonsDisableEnableState(true);
 
   await sleep(100);
   try {
     const promptText = document.getElementById("prompt_text").value;
-    logMsg(`promptText: ${promptText}`);
+    logMsg(`[generateTextAnswer] promptText: ${promptText}`);
 
     // Prepare inputs
     const conversation = [
@@ -245,7 +247,7 @@ async function generateTextAnswer() {
     ];
 
     const inputs = await processor(conversation);
-    logMsg("inputs are created");
+    logMsg("[generateTextAnswer] inputs are created");
     
     // Generate response
     const outputs = await model.generate({
@@ -253,23 +255,84 @@ async function generateTextAnswer() {
       max_new_tokens: 150,
       do_sample: false,
     });
-    logMsg("outputs are generated");
+    logMsg("[generateTextAnswer] outputs are generated");
 
     // Decode output
     const new_tokens = outputs.slice(null, [inputs.input_ids.dims.at(-1), null]);
     const decoded = processor.batch_decode(new_tokens, { skip_special_tokens: true });
     const answer = decoded[0];
-    logMsg(`answer: ${answer}`);
+    logMsg(`[generateTextAnswer] answer: ${answer}`);
     const textAnswerDiv = document.getElementById("generated_text_answer");
     textAnswerDiv.textContent = answer;
   } catch (err) {
-    logMsg(`Error happened while generating text answer: ${err.message}`, err, true, true)
+    logMsg(`[generateTextAnswer] Error happened while generating text answer: ${err.message}`, err, true, true)
   } finally {
-    logMsg("Processing Finished (generating text answer)");
-    generateBtnEl.disabled = false;
-    generateAppendBtnEl.disabled = false;
-    generateTextAnswerBtnEl.disabled = false;
+    logMsg("[generateTextAnswer] Processing Finished (generating text answer)");
+    toggleGenerateButtonsDisableEnableState(false);
   }
+}
+
+async function generateTextAnswerByImage() {
+  logMsg(`[generateTextAnswerByImage] started`);
+  toggleGenerateButtonsDisableEnableState(true);
+
+  await sleep(100);
+  try {
+    const file = imageInputEl.files[0];
+    const promptText = document.getElementById("prompt_text").value;
+    logMsg(`[generateTextAnswerByImage] promptText: ${promptText}`);
+
+    // Convert file to dataURL using await
+    const dataURL = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+    logMsg(`[generateTextAnswerByImage] image loaded: ${dataURL.substring(0, 50)}`);
+    
+    // Now you can use dataURL directly
+    const conversation = [
+      {
+        role: "User",
+        content: "<image_placeholder>\n" + promptText,
+        images: [dataURL],
+      },
+    ];
+    
+    const inputs = await processor(conversation);
+    logMsg("[generateTextAnswerByImage] inputs are created");
+    
+    // Generate response
+    const outputs = await model.generate({
+      ...inputs,
+      max_new_tokens: 150,
+      do_sample: false,
+    });
+    logMsg("[generateTextAnswerByImage] outputs are generated");
+
+    // Decode output
+    const new_tokens = outputs.slice(null, [inputs.input_ids.dims.at(-1), null]);
+    const decoded = processor.batch_decode(new_tokens, { skip_special_tokens: true });
+    const answer = decoded[0];
+    logMsg(`[generateTextAnswerByImage] answer: ${answer}`);
+    const textAnswerDiv = document.getElementById("generated_text_answer");
+    textAnswerDiv.textContent = answer;
+  } catch (err) {
+    logMsg(`[generateTextAnswerByImage] Error happened while generating text answer: ${err.message}`, err, true, true)
+  } finally {
+    logMsg("[generateTextAnswerByImage] Processing Finished (generating text answer)");
+    toggleGenerateButtonsDisableEnableState(false);
+  }
+}
+
+function toggleGenerateButtonsDisableEnableState(isDisable) {
+  generateBtnEl.disabled = isDisable;
+  generateAppendBtnEl.disabled = isDisable;
+  generateTextAnswerBtnEl.disabled = isDisable;
+  generateTextAnswerByImageBtnEl.disabled = isDisable;
+  imageInputEl.disabled = isDisable;
 }
 
 function getSelectedPrecisions() {
