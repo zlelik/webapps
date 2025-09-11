@@ -263,7 +263,8 @@ async function generateTextAnswer() {
     const answer = decoded[0];
     logMsg(`[generateTextAnswer] answer: ${answer}`);
     const textAnswerDiv = document.getElementById("generated_text_answer");
-    textAnswerDiv.textContent = answer;
+    textAnswerDiv.innerHTML = formatAnswerAsHTML(answer);
+    hljs.highlightAll(); 
   } catch (err) {
     logMsg(`[generateTextAnswer] Error happened while generating text answer: ${err.message}`, err, true, true)
   } finally {
@@ -318,7 +319,8 @@ async function generateTextAnswerByImage() {
     const answer = decoded[0];
     logMsg(`[generateTextAnswerByImage] answer: ${answer}`);
     const textAnswerDiv = document.getElementById("generated_text_answer");
-    textAnswerDiv.textContent = answer;
+    textAnswerDiv.innerHTML = formatAnswerAsHTML(answer);
+    hljs.highlightAll(); 
   } catch (err) {
     logMsg(`[generateTextAnswerByImage] Error happened while generating text answer: ${err.message}`, err, true, true)
   } finally {
@@ -333,6 +335,38 @@ function toggleGenerateButtonsDisableEnableState(isDisable) {
   generateTextAnswerBtnEl.disabled = isDisable;
   generateTextAnswerByImageBtnEl.disabled = isDisable;
   imageInputEl.disabled = isDisable;
+}
+
+/*function formatAnswerAsHTML(answer) {
+  const html = marked.parse(answer, {
+    highlight: (code, lang) => {
+      return hljs.highlight(code, { language: lang }).value;
+    }
+  });
+  return html;
+}*/
+
+function formatAnswerAsHTML(answer) {
+  // Convert Markdown to HTML
+  const html = marked.parse(answer, {
+    highlight: (code, lang) => {
+      return hljs.highlight(code, { language: lang }).value;
+    }
+  });
+
+  // Create a temporary container to render math
+  const container = document.createElement("div");
+  container.innerHTML = html;
+
+  // Render LaTeX math inside the container
+  renderMathInElement(container, {
+    delimiters: [
+      { left: "$$", right: "$$", display: true },   // block math
+      { left: "$", right: "$", display: false }     // inline math
+    ]
+  });
+
+  return container.innerHTML;
 }
 
 function getSelectedPrecisions() {
