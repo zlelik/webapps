@@ -50,7 +50,7 @@ const ALL_POSSIBLE_FALLBACK_PRECISIONS = [
     image_decode: "fp32",
   },*/
   {
-    label: "FP16-FP32 combination 3 (text only)",// model loaded but image generation failed with error:  ERROR_MESSAGE: Unexpected input data type. Actual: (tensor(float16)) , expected: (tensor(float)). Text answer works fine.
+    label: "FP16-FP32 (text only)",// model loaded but image generation failed with error:  ERROR_MESSAGE: Unexpected input data type. Actual: (tensor(float16)) , expected: (tensor(float)). Text answer works fine.
     prepare_inputs_embeds: "fp16",
     language_model: "fp16",
     lm_head: "fp16",
