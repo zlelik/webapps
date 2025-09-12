@@ -12,7 +12,8 @@ let selectPrecisionEl = document.getElementById("precision_select")
 let selectedDevice = "webgpu";
 
 const ALL_POSSIBLE_FALLBACK_PRECISIONS = [
-  {
+  // these 4 configurations below are commented because they does not work anyway.
+  /*{
     label: "FP32 model",
     prepare_inputs_embeds: "fp32",
     language_model: "fp32",
@@ -29,6 +30,33 @@ const ALL_POSSIBLE_FALLBACK_PRECISIONS = [
     gen_head: "fp32",
     gen_img_embeds: "fp32",
     image_decode: "fp32"
+  },
+  {
+    label: "FP16-FP32 combination 1",// failed with error on any PC: undefined 341804528
+    prepare_inputs_embeds: "fp16", // fp32 - 2GB, fp16/q4/bnb4 - 1GB, int8/q4f16/quantized/uint8 - 0.5GB
+    language_model: "fp16", // fp32 - 4.9GB, fp16 - 2.1GB, q4/q4f16/bnb4 - 0.8GB, int8/quantized/uint8 - 1.2GB 
+    lm_head: "fp32",// fp32 - 0.85GB, fp16 - 0.4GB, q4f16/bnb4/q4 - 131MB, int8/quantized/uint8 - 210MB
+    gen_head: "fp32", // fp32 - 151MB, fp16 - 76MB, q4/q4f16/bnb4 - 24MB, int8/quantized/uint8 - 38MB
+    gen_img_embeds: "fp32",// fp32 - 17MB, fp16 - 9MB, q4/q4f16/bnb4/int8/quantized/uint8 - 4MB
+    image_decode: "fp32",// fp32/q4/bnb4 - 170MB, fp16/q4f16 - 85MB, int8/quantized/uint8 - 43MB
+  },
+  {
+    label: "FP16-FP32 combination 2",// failed with the error on any PC: undefined 210426272
+    prepare_inputs_embeds: "fp32",
+    language_model: "fp16",
+    lm_head: "fp32",
+    gen_head: "fp32",
+    gen_img_embeds: "fp32",
+    image_decode: "fp32",
+  },*/
+  {
+    label: "FP16-FP32 combination 3 (text only)",// model loaded but image generation failed with error:  ERROR_MESSAGE: Unexpected input data type. Actual: (tensor(float16)) , expected: (tensor(float)). Text answer works fine.
+    prepare_inputs_embeds: "fp16",
+    language_model: "fp16",
+    lm_head: "fp16",
+    gen_head: "fp32",
+    gen_img_embeds: "fp32",
+    image_decode: "fp32",
   },
   {
     label: "FP16 model",
@@ -207,7 +235,6 @@ async function generateImage(appendImage) {
       // Save the generated image
       //await outputs[0].save("test.png");//this call initiates image download in browser
 
-
       const blob = await outputs[0].toBlob();
       const dataUrl = URL.createObjectURL(blob);
 
@@ -263,8 +290,7 @@ async function generateTextAnswer() {
     const answer = decoded[0];
     logMsg(`[generateTextAnswer] answer: ${answer}`);
     const textAnswerDiv = document.getElementById("generated_text_answer");
-    textAnswerDiv.innerHTML = formatAnswerAsHTML(answer);
-    hljs.highlightAll(); 
+    formatAnswerAsHTML(textAnswerDiv, answer);
   } catch (err) {
     logMsg(`[generateTextAnswer] Error happened while generating text answer: ${err.message}`, err, true, true)
   } finally {
@@ -319,8 +345,7 @@ async function generateTextAnswerByImage() {
     const answer = decoded[0];
     logMsg(`[generateTextAnswerByImage] answer: ${answer}`);
     const textAnswerDiv = document.getElementById("generated_text_answer");
-    textAnswerDiv.innerHTML = formatAnswerAsHTML(answer);
-    hljs.highlightAll(); 
+    formatAnswerAsHTML(textAnswerDiv, answer);
   } catch (err) {
     logMsg(`[generateTextAnswerByImage] Error happened while generating text answer: ${err.message}`, err, true, true)
   } finally {
@@ -337,36 +362,56 @@ function toggleGenerateButtonsDisableEnableState(isDisable) {
   imageInputEl.disabled = isDisable;
 }
 
-/*function formatAnswerAsHTML(answer) {
-  const html = marked.parse(answer, {
-    highlight: (code, lang) => {
-      return hljs.highlight(code, { language: lang }).value;
-    }
-  });
-  return html;
-}*/
+function formatAnswerAsHTML(answerEl, answer) {
+  let result = answer;
+  try {
+    result = result.replace(/```latex([\s\S]*?)```/g, (_, math) => {return '$$' + math.trim() + '$$';});
+    // Convert Markdown to HTML
 
-function formatAnswerAsHTML(answer) {
-  // Convert Markdown to HTML
-  const html = marked.parse(answer, {
-    highlight: (code, lang) => {
-      return hljs.highlight(code, { language: lang }).value;
-    }
-  });
+    const html = DOMPurify.sanitize(marked.parse(result, {
+      highlight: (code, lang) => {
+        if (lang && hljs.getLanguage(lang)) {
+          return hljs.highlight(code, { language: lang }).value;
+        }
+        // fallback: auto-detect or no highlighting
+        return hljs.highlightAuto(code).value;
+      }
+    }));
 
-  // Create a temporary container to render math
-  const container = document.createElement("div");
-  container.innerHTML = html;
+    // Create a temporary container to render math
+    const container = document.createElement("div");
+    container.innerHTML = html;
 
-  // Render LaTeX math inside the container
-  renderMathInElement(container, {
-    delimiters: [
-      { left: "$$", right: "$$", display: true },   // block math
-      { left: "$", right: "$", display: false }     // inline math
-    ]
-  });
+    // Render LaTeX math inside the container
+    renderMathInElement(container, {
+      delimiters: [
+        { left: "$$", right: "$$", display: true },   // block math
+        { left: "$", right: "$", display: false }     // inline math
+      ]
+    });
+    result = container.innerHTML;
+    
+    answerEl.innerHTML = result;
+    
+    document.querySelectorAll("#generated_text_answer pre code").forEach((codeBlock) => {
+      const pre = codeBlock.parentNode;
+      const button = document.createElement("button");
+      button.textContent = "Copy";
+      button.className = "copy-btn";
+      pre.appendChild(button);
 
-  return container.innerHTML;
+      button.addEventListener("click", () => {
+        navigator.clipboard.writeText(codeBlock.innerText).then(() => {
+          button.textContent = "Copied!";
+          setTimeout(() => (button.textContent = "Copy"), 2000);
+        });
+      });
+    });
+    hljs.highlightAll();
+  } catch (err) {
+    logMsg("Error during model answer markup formatting. Original model answer will be returned.", err, true, true);
+    answerEl.innerHTML = result;
+  }
 }
 
 function getSelectedPrecisions() {
@@ -451,7 +496,3 @@ function loadingProgressCallback(progressInfo) {
     document.getElementById("load_progress").innerHTML = `${progressInfo?.progress?.toFixed(2)}% [${progressInfo?.file}]`;
   }
 }
-
-
-
-
