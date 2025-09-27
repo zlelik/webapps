@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Learning Languages</title>
+</head>
+<body>
+  
+  <div style="font-size: 30px; color: green;">
+    <span id="speaking_phrase">Test</span>
+  </div>
+  <label for="phrases_to_learn">Phrases To Learn:</label><br>
+  <textarea id="phrases_to_learn" rows="4" cols="50"></textarea><br><br>
+  
+  <label for="known_phrases">Known Phrases:</label><br>
+  <textarea id="known_phrases" rows="4" cols="50"></textarea><br><br>
+  
+  <label for="language_to_learn">Language To Learn:</label>
+  <select id="language_to_learn">
+    <option value="en-US">English</option>
+    <option value="fr-FR">French</option>
+    <option value="de-DE">German</option>
+    <option value="nl-NL">Dutch</option>
+    <option value="es-ES">Spanish</option>
+    <option value="it-IT">Italian</option>
+    <option value="ru-RU">Russian</option>
+  </select><br><br>
+
+  <label for="known_language">Known Language:</label>
+  <select id="known_language">
+    <option value="en-US">English</option>
+    <option value="fr-FR">French</option>
+    <option value="de-DE">German</option>
+    <option value="nl-NL">Dutch</option>
+    <option value="es-ES">Spanish</option>
+    <option value="it-IT">Italian</option>
+    <option value="ru-RU">Russian</option>
+  </select><br><br>
+  
+  <label for="way_of_showing">Way of Showing:</label>
+  <select id="way_of_showing">
+    <option value="sequential">Sequential</option>
+    <option value="random">Random</option>
+  </select><br><br>
+  
+  <button id="startButton" onclick="startSpeech()">Start</button>
+  <button id="stopButton" onclick="stopSpeech()">Stop</button>
+  
+  <script>
+    
+    // sleep time expects milliseconds
+    function sleep (time) {
+      return new Promise((resolve) => setTimeout(resolve, time));
+    }
+    // Load saved values from local storage
+    window.onload = function() {
+      document.getElementById('phrases_to_learn').value = localStorage.getItem('phrases_to_learn') || '';
+      document.getElementById('known_phrases').value = localStorage.getItem('known_phrases') || '';
+      document.getElementById('language_to_learn').value = localStorage.getItem('language_to_learn') || 'en-US';
+      document.getElementById('known_language').value = localStorage.getItem('known_language') || 'en-US';
+      document.getElementById('way_of_showing').value = localStorage.getItem('way_of_showing') || 'sequential';
+    }
+
+    var intervalID;
+    var phrasesToLearn = [];
+    var knownPhrases = [];
+    var languageToLearn = "";
+    var knownLanguage = "";
+    var isSpeakingInProgress = false;
+    var numberOfRepetition = 3;
+    var wayOfShowing = "sequential";
+    var currentPhraseIndex = 0;
+
+    async function speakOnce() {
+      
+      var phraseToLearn = "";
+      var knownPhrase = "";
+      
+      if (wayOfShowing == "random") {
+        var randomIndex = Math.floor(Math.random() * phrasesToLearn.length);
+        phraseToLearn = phrasesToLearn[randomIndex];
+        knownPhrase = knownPhrases[randomIndex];
+      } else if (wayOfShowing == "sequential") {
+        phraseToLearn = phrasesToLearn[currentPhraseIndex];
+        knownPhrase = knownPhrases[currentPhraseIndex];
+        currentPhraseIndex++;
+        if (currentPhraseIndex >= phrasesToLearn.length) {
+          currentPhraseIndex = 0;
+        }
+      }
+        document.getElementById('speaking_phrase').innerHTML = phraseToLearn + " (" + languageToLearn + ") - " + knownPhrase + " (" + knownLanguage + ")";
+
+      var msgToLearn = new SpeechSynthesisUtterance();
+      msgToLearn.text = phraseToLearn;
+      msgToLearn.lang = languageToLearn;
+
+      var msgKnown = new SpeechSynthesisUtterance();
+      msgKnown.text = knownPhrase;
+      msgKnown.lang = knownLanguage;
+      var repeatCount = 0;
+
+      msgToLearn.onend = async function(event) {
+        console.log("Finish speaking phrase to learn: " + repeatCount);
+        console.log("Wait 1 second");
+        repeatCount++;
+        await sleep(1000);
+        if (repeatCount < numberOfRepetition) {
+          console.log("Start speaking phrase to learn" + repeatCount);
+          speechSynthesis.speak(msgToLearn);
+        } else {
+          if (isSpeakingInProgress) {
+            setTimeout(speakOnce, 1000);
+          }
+        }
+      }
+      msgKnown.onend = async function(event) {
+        console.log("Finish speaking known phrase: " + repeatCount);
+        console.log("Wait 2 second");
+        await sleep(1000);
+        console.log("Start speaking phrase to learn" + repeatCount);
+        speechSynthesis.speak(msgToLearn);
+      };
+      console.log("Start speaking known phrase" + repeatCount);
+      speechSynthesis.speak(msgKnown);
+      
+      /*msgToLearn.onend = async function(event) {
+        console.log("Finish speaking phrase to learn" + repeatCount);
+        console.log("Wait 1 second");
+        await sleep(2000);
+        console.log("Start speaking known phrase" + repeatCount);
+        speechSynthesis.speak(msgKnown);
+      };
+      console.log("Start speaking phrase to learn" + repeatCount);
+      speechSynthesis.speak(msgToLearn);*/
+    }
+    
+    function startSpeech() {
+      document.getElementById('startButton').disabled = true;
+      document.getElementById('stopButton').disabled = false;
+      isSpeakingInProgress = true;
+
+      phrasesToLearn = document.getElementById('phrases_to_learn').value.trim().split('\n');
+      knownPhrases = document.getElementById('known_phrases').value.trim().split('\n');
+      languageToLearn = document.getElementById('language_to_learn').value;
+      knownLanguage = document.getElementById('known_language').value;
+      wayOfShowing = document.getElementById('way_of_showing').value;
+
+      setTimeout(speakOnce, 100);
+    }
+
+    function stopSpeech() {
+      isSpeakingInProgress = false;
+      document.getElementById('startButton').disabled = false;
+      document.getElementById('stopButton').disabled = true;
+    }
+
+    function speakText(text, language) {
+      console.log("Start speaking text " + text + " in " + language);
+      var msg = new SpeechSynthesisUtterance();
+      msg.text = text;
+      msg.lang = language;
+      speechSynthesis.speak(msg);
+      console.log("Finish speaking text " + text + " in " + language);
+    }
+
+    // Save values to local storage
+    window.onbeforeunload = function() {
+      localStorage.setItem('phrases_to_learn', document.getElementById('phrases_to_learn').value);
+      localStorage.setItem('known_phrases', document.getElementById('known_phrases').value);
+      localStorage.setItem('language_to_learn', document.getElementById('language_to_learn').value);
+      localStorage.setItem('known_language', document.getElementById('known_language').value);
+      localStorage.setItem('way_of_showing', document.getElementById('way_of_showing').value);
+    }
+  </script>
+</body>
+</html>
