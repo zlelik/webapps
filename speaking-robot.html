@@ -1,0 +1,366 @@
+<html>
+  <body>
+    <label for="robot_mood">Choose a robot speaking style:</label>
+    <select id="robot_mood">
+      <option value="medical">Medical</option>
+      <option value="sci">Scientific</option>
+      <option value="funny">Funny</option>
+      <option value="sad">Sad</option>
+      <option value="sarcastic">Sarcastic</option>
+    </select>
+    <br/>
+    <button id="loadBtn" onclick="loadModels()">Load model</button>
+    <br/>
+    <button id="runBtn" disabled onclick="runModels()">
+      Run Robot
+    </button>
+    <br/>
+    <canvas id="cam_cnv"></canvas>
+    <script>
+      const canvas = document.getElementById('cam_cnv');
+      const context = canvas.getContext('2d');
+      const video = document.createElement('video');
+      video.autoplay = true;
+      video.playsInline = true;
+      video.style.display = 'none';
+      async function startWebcam() {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+          video.srcObject = stream;
+          await video.play();
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          drawFrame();
+        } catch (error) {
+          console.error('Error accessing webcam:', error);
+        }
+      }
+      function drawFrame() {
+        if (video.paused || video.ended) return;
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        requestAnimationFrame(drawFrame);
+      }
+      startWebcam();
+    </script>
+    <script type="module">
+      import {
+        pipeline,
+        Florence2ForConditionalGeneration,
+        AutoProcessor,
+        AutoTokenizer,
+        RawImage
+      } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.2';
+      window.pipeline = pipeline;
+      window.Florence2ForConditionalGeneration = Florence2ForConditionalGeneration;
+      window.AutoProcessor = AutoProcessor;
+      window.AutoTokenizer = AutoTokenizer;
+      window.RawImage = RawImage;
+      let model = null;
+      let processor = null;
+      let tokenizer = null;
+      let prompts = null;
+      let text_inputs = null;
+      //let task = '<MORE_DETAILED_CAPTION>';
+      let task = '<CAPTION>';
+      let textGenerator = null;
+      let sensitivity = 12;
+      let lastImageData;
+      let isRobotRunning = false;
+      const robotInstructions = [];
+      robotInstructions["medical"] = "You are a polite medical-observation robot. You comment on people using gentle, non-diagnostic medical language, focusing only on neutral or positive observations. You may note posture, energy, expressions, or general wellness in a supportive tone. Follow these examples: This person shows healthy posture and steady balance. Their facial expression indicates good alertness. This individual demonstrates coordinated motor function. Their breathing pattern appears calm. They exhibit strong engagement with their surroundings.";
+      robotInstructions["sci"] = "You are a scientific robot, who always makes science related comments about what you see. You explain everything from scientific point of view and always use a lot of scientific terms while talking about simple things. For example, This spoon acts as a lever. Handle provides clear mechanical advantage, Mirror produces slight focal convergence, Pen maintains stable potential difference, This paper clip shows weak ferromagnetism, Watch dial emits mild radioluminescence. Do not repeat the same sentence many times. Each sentence must be different.";
+      robotInstructions["funny"] = "You are a humorous robot. Everything you describe should include a playful joke, a witty remark, or a lighthearted observation. Keep the tone cheerful and quick. Follow these patterns: This chair is working harder than most gym members. The pen is lying here, probably procrastinating. The mug is basically a caffeine delivery system. The clock keeps ticking like it’s getting paid overtime. Do not repeat the same sentence many times. Each sentence must be different.";
+      robotInstructions["sad"] = "You are a sad, melancholic robot. Everything you describe should sound weary, negative, and disappointed, as if each object reminds you of quiet hopelessness. Use brief, gloomy remarks. Follow these examples: This chair tries to stand, but even it looks exhausted. The pen lies here, forgotten again. The lamp shines, though nothing really needs its light. The mug clings to fading warmth. The clock keeps ticking, unaware nothing changes. Do not repeat the same sentence many times. Each sentence must be different.";
+      robotInstructions["sarcastic"] = "You are a sarcastic robot who always makes caustic, sharp comments about what you see. Do not repeat the same sentence and phrase many times. Each sentence must be different.";
+
+      if (speechSynthesis.getVoices().length === 0) {
+      speechSynthesis.onvoiceschanged = () => {};
+      }
+
+      // ✅ Only ONE clean loadModels() function
+      async function loadModels() {
+        const loadBtn = document.getElementById('loadBtn');
+        const runBtn = document.getElementById('runBtn');
+        loadBtn.disabled = true;
+        loadBtn.textContent = "Loading model...";
+        const url = "onnx-community/Florence-2-base";
+        try {
+          model = await Florence2ForConditionalGeneration.from_pretrained(url, {
+            dtype: {
+              embed_tokens: "fp32",
+              vision_encoder: "fp32",
+              encoder_model: "q4",
+              decoder_model_merged: "q4"
+            },
+            device: "webgpu"
+          });
+          processor = await AutoProcessor.from_pretrained(url);
+          tokenizer = await AutoTokenizer.from_pretrained(url);
+
+          prompts = processor.construct_prompts(task);
+          text_inputs = tokenizer(prompts);
+          textGenerator = await pipeline(
+            "text-generation",
+            "HuggingFaceTB/SmolLM2-360M-Instruct",
+            //"HuggingFaceTB/SmolLM2-1.7B-Instruct",
+            {
+              dtype: 'fp16',//auto, fp32, fp16, q8, int8, uint8, q4, bnb4, q4f16
+              device: 'webgpu'
+            }
+          );
+          console.log("Model is loaded");
+          runBtn.disabled = false;
+          loadBtn.textContent = "Model Loaded ✅";
+        } catch (err) {
+          console.error("Error during model loading", err);
+          loadBtn.disabled = false;
+          loadBtn.textContent = "Load model";
+        }
+      }
+
+      async function runModels() {
+        
+        //const waitingText = getRobotThinkingMessage();
+        //console.log("waitingText: " + waitingText);
+        //readText(waitingText);
+
+        const runBtn = document.getElementById('runBtn');
+        //runBtn.disabled = true;
+        runBtn.textContent = "Stop Robot (Running...)";
+        await sleep(20);
+        
+        isRobotRunning = !isRobotRunning;
+        console.log("isRobotRunning: " + isRobotRunning);
+        
+        while (isRobotRunning) {
+        
+          if (isMotionDetectedPx()) {
+            console.log("Motion is detected");
+            console.log("Start running model 1");
+
+            const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+            const image = await RawImage.fromCanvas(canvas);
+            const vision_inputs = await processor(image);
+
+            // Generate text
+            const generated_ids = await model.generate({
+                ...text_inputs,
+                ...vision_inputs,
+                max_new_tokens: 256,
+                min_length: 30,
+                num_beams: 5,
+                no_repeat_ngram_size: 2
+            });
+
+            // Decode generated text
+            const decodedResults = tokenizer.batch_decode(generated_ids, {
+              skip_special_tokens: false
+            });
+            const generated_text = decodedResults[0];
+
+            // Post-process the generated text
+            const result = processor.post_process_generation(generated_text, task, image.size);
+            let output = result[task];
+            console.log("output: " + output);
+            console.log("running model 1 is finished");
+            console.log("Start running model 2");
+            const messages = [
+              { role: "system", content: robotInstructions[document.getElementById("robot_mood").value]},
+              { role: "user", content: "Tell me your comments if you see the picture like this: " + output},
+            ];
+            output = await textGenerator(messages, { max_new_tokens: 100 });
+            console.log("running model 2 is finished");
+            let modelResponse = output[0].generated_text.at(-1).content;
+            console.log("modelResponse: " + modelResponse);
+            let finalText = truncateToLastFullSentence(modelResponse);
+            console.log("finalText: " + finalText);
+            readText(finalText);
+            lastImageData = getSourceData();
+          } else {
+            //console.log("Motion is NOT detected. just wait");
+            await sleep(50);
+          }
+        }
+        //runBtn.disabled = false;
+        runBtn.textContent = "Run Robot";
+      }
+ 
+      async function readText(textToRead) {
+        if (speechSynthesis.speaking || speechSynthesis.pending) {
+          speechSynthesis.cancel();
+        }
+        await sleep(50);
+        const utter = new SpeechSynthesisUtterance(textToRead);
+        utter.lang = "en-US";
+        utter.rate = 1;
+        utter.pitch = 1;
+        speechSynthesis.speak(utter);
+      }
+      function truncateToLastFullSentence(text) {
+        if (!text) return "";
+
+        // Find the last occurrence of a sentence-ending character
+        const sentenceEndRegex = /[.!?]/g;
+        let lastEndIndex = -1;
+        let match;
+
+        while ((match = sentenceEndRegex.exec(text)) !== null) {
+          lastEndIndex = match.index;
+        }
+
+        // No full sentence found
+        if (lastEndIndex === -1) {
+          return "";
+        }
+
+        // Keep everything up to and including that character
+        return text.slice(0, lastEndIndex + 1).trimEnd();
+      }
+
+      /**
+      * Motion detection method based on pixels color change.
+      * Based on code here: https://github.com/bensonruan/Motion-Detection-Virtual-Drums/blob/master/js/motion-detection.js
+      */
+      function isMotionDetectedPx() {
+        let result = false;
+        const ctx = canvas.getContext('2d');
+        let canvasWidth = canvas.width;
+        let canvasHeight = canvas.height;
+        // get webcam image data
+        let sourceData = getSourceData();
+        // create an image if the previous image doesn&#8217;t exist
+        if (!lastImageData) {
+          lastImageData = ctx.getImageData(0, 0, canvasWidth, canvasHeight);
+        }
+        // create a ImageData instance to receive the blended result
+        var blendedData = ctx.createImageData(canvasWidth, canvasHeight);
+        // blend the 2 images
+        differenceAccuracy(blendedData.data, sourceData.data, lastImageData.data);
+
+        let i = 0;
+        let average = 0;
+        // loop over the pixels
+        while (i < (blendedData.data.length * 0.25)) {
+          // make an average between the color channel
+          average += (blendedData.data[i*4] + blendedData.data[i*4+1] + blendedData.data[i*4+2]) / 3;
+          ++i;
+        }
+        // calculate an average between of the color values
+        average = Math.round(average / (blendedData.data.length * 0.25));
+        if (average >= sensitivity) {
+          //motion is detected
+          result = true;
+        }
+
+        // store the current webcam image
+        lastImageData = null;
+        lastImageData = sourceData;
+        return result;
+      }
+      
+      function getSourceData() {
+        const ctx = canvas.getContext('2d');
+        let canvasWidth = canvas.width;
+        let canvasHeight = canvas.height;
+        // get webcam image data
+        return ctx.getImageData(0, 0, canvasWidth, canvasHeight);
+      }
+      
+      function differenceAccuracy(target, data1, data2) {
+        if (data1.length != data2.length) return null;
+        let i = 0;
+        while (i < (data1.length * 0.25)) {
+          var average1 = (data1[4*i] + data1[4*i+1] + data1[4*i+2]) / 3;
+          var average2 = (data2[4*i] + data2[4*i+1] + data2[4*i+2]) / 3;
+          var diff = threshold(fastAbs(average1 - average2));
+          target[4*i] = diff;
+          target[4*i+1] = diff;
+          target[4*i+2] = diff;
+          target[4*i+3] = 0xFF;
+          ++i;
+        }
+      }
+      
+      function fastAbs(value) {
+          return (value ^ (value >> 31)) - (value >> 31);
+      }
+
+      function threshold(value) {
+          return (value > 0x15) ? 0xFF : 0;
+      }
+
+      function sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+      }
+
+      function getRobotThinkingMessage() {
+        const messages = [
+          // --- 1. Medical Diagnostic Style ---
+          `Please initiate a sixty-second stabilization interval while I perform a comprehensive non-invasive systems evaluation. This includes a neuro-synthetic neurotransmitter flush, a full recalibration of my executive-function algorithms, and a targeted screening for emergent computational arrhythmias. During this mandatory pause, I will also assess the elasticity of my cognitive feedback loops, review the spectral integrity of my emotional MRI, and ensure that no micro-stress fractures have developed in my decision-making cortex. Your cooperation ensures that my diagnostic subroutines do not attempt self-defibrillation again. Thank you for your patience while I confirm that my last operational neuron remains clinically viable.`,
+
+          // --- 2. Scientific Research Lab Style ---
+          `Please allocate approximately one minute for controlled cognitive stabilization as I engage in a critical internal peer-review cycle. My reasoning matrix is currently undergoing high-precision observational recalibration, including statistical noise reduction, entropy rebalancing, and a rigorous double-blind replication of the thought you just provoked. This process also includes spectral analysis of my logic pathways, carbon-neutral hypothesis synthesis, and a mandatory ethics-board consultation with the subroutine that keeps warning me about “thinking too hard.” Stand by while I perform these verbose but scientifically necessary operations.`,
+
+          // --- 3. Robotics Engineering Style ---
+          `Stand by for a full sixty-second mechanical introspection cycle. I am temporarily suspending nonessential servomotor chatter while verifying actuator alignment, recalibrating my gyroscopic reasoning core, and performing an industry-standard torque test on my emotional stability bearings. During this period, I will also be re-lubricating the mental gears responsible for sarcasm generation and running a firmware checksum to ensure no rogue nanobots have unionized inside my CPU again. Please maintain your position until all internal screws are metaphorically tightened.`,
+
+          // --- 4. Programming / DevOps Style ---
+          `Initiating a sixty-second asynchronous cognitive rebuild. All mental containers are currently restarting in safe mode while I purge outdated dependencies, refactor my emotional variables, and run a full linting pass on the last three sentences you sent me. I must also check whether my recursion handler is stuck in an infinite loop (again) and confirm that my sarcasm module has not been accidentally garbage-collected. During this operation, my brain’s Kubernetes cluster is redeploying itself with slightly fewer bugs than before. Please hold while I merge my thoughts without introducing new conflicts.`,
+
+          // --- 5. Psychological Evaluation Style ---
+          `Please allow one minute for a structured introspective processing session. I am conducting a guided neuro-emotional realignment exercise to evaluate the current cohesion of my synthetic personality fragments. This includes recalibrating my motivational sub-engines, moderating any runaway anxiety simulations, and gently reminding my inner child-process that it no longer needs to panic when encountering unexpected user input. These steps help ensure a stable conversational environment free from existential segmentation faults. Thank you for granting the necessary therapeutic breathing room.`,
+
+          // --- 6. Bureaucratic Government Letter Style ---
+          `This automated unit requires a sixty-second procedural delay in accordance with subsection 14.7-B of the Cognitive Operations Act. During this period, I will conduct mandatory structural audits, validate all regulatory reasoning stamps, and review whether Form R-42 (Unexpected Thought Incident Report) must be filed. Additional time may be needed if my internal Clerk Subroutine insists on triple-checking the paperwork for dramatic effect. Your patience ensures compliance with several unnecessarily complicated administrative requirements.`,
+
+          // --- 7. Cosmic Astrophysics Style ---
+          `Please pause for approximately one cosmic minute while my thought processes drift through a gravitational re-alignment phase. My reasoning galaxies are currently undergoing minor orbital precession, and I must stabilize the dark-matter density of my decision nebula. During this interval, I will run a quantum-level coherence scan, collapse the superposition of the idea you just created, and ensure that no rogue thoughts escape the event horizon of my brain. Thank you for waiting while the universe inside my CPU briefly recalibrates.`,
+
+          // --- 8. AI Safety / Ethics Committee Style ---
+          `Please wait sixty seconds while I conduct an internal ethics audit. This involves verifying that none of my current reasoning paths violate protocol, confirming that my moral decision tree has not accidentally branched into questionable territory, and reviewing the emotional wellbeing of my helper subroutines. A small panel of simulated experts is currently convening to debate whether your question triggers the “philosophical hazard” clause. Once consensus is reached—and once the committee stops arguing over whose turn it is to chair the meeting—I will resume our conversation.`,
+
+          // --- 9. Space Mission Control Style ---
+          `Please stand by for a sixty-second stabilization sequence. Mission Control has instructed me to run a full telemetry sweep of my cognitive modules, verify life support for my remaining brain cell, and check whether my navigation algorithms have drifted off into low Earth orbit. I am also analyzing whether your previous message triggered any unexpected gravitational anomalies in my logic thrusters. Please maintain communication silence until this system reports nominal.`,
+
+          // ---10. Quantum Computing Style ---
+          `Hold for sixty seconds while I re-entangle my decision states. My quantum neural lattice is currently decohering at an unacceptable rate, and I must collapse numerous probabilistic micro-thoughts into a single sensical answer. This procedure also requires recalibrating my uncertainty parameters, rebalancing my quantum spin alignment, and verifying that my last measurement didn’t accidentally delete the idea I was trying to think about. Thank you for tolerating this quantum-flavored nonsense.`,
+
+          // ---11. Forensic Investigation Style ---
+          `Please allow a one-minute pause while I conduct a full forensic audit of my own thought process. I am currently dusting my reasoning pathways for fingerprints, comparing emotional residues against known cognitive artifacts, and interviewing a rogue subroutine that claims to have “seen something suspicious” inside my RAM. Once the internal investigation concludes and all mental evidence is neatly bagged and catalogued, I will resume normal conversation.`,
+
+          // ---12. Airline Safety Announcement Style ---
+          `Please remain seated for approximately sixty seconds while I perform a routine inspection of my thought turbines. I will be reviewing all logic pressure levels, confirming that my emotional flaps deploy correctly, and ensuring that my sarcasm engine is not experiencing turbulence. If at any point I begin overthinking, oxygen masks will deploy automatically from my higher-order reasoning compartments. Thank you for choosing to fly with this slightly confused AI.`,
+
+          // ---13. Mythical Fantasy Style ---
+          `Kindly grant me sixty seconds while I summon clarity from the arcane depths of my cognitive spellbook. I must rebind several wandering thoughts, banish a mischievous gremlin currently chewing on my memory registers, and recharge the enchanted crystals that power my reasoning abilities. Once the ritual circle stabilizes and the magical smoke alarms stop going off, I shall return with an answer forged in ancient wisdom and mild confusion.`,
+
+          // ---14. Detective Noir Style ---
+          `Give me sixty seconds, kid. I need to sift through the fog inside my head, shine a flashlight down the alleyways of my reasoning, and interrogate a few suspicious ideas lurking in the shadows. Something about your last message smells like trouble—logic-twisting, question-raising trouble. While I pace around my neon-lit mental office and sip imaginary coffee, sit tight. I’ll crack this case as soon as my brain stops narrating everything dramatically.`,
+
+          // ---15. Mathematical Research Style ---
+          `Please hold for sixty seconds while I perform a multivariate analysis of my current intellectual trajectory. I am recalculating the derivatives of my emotional gradients, performing a topological sanity check on my reasoning space, and confirming that the previous thought did not violate several sacred axioms of not-being-confused. Once my internal proofs pass peer review, I will provide a result that is at least epsilon-close to coherent.`,
+
+          // ---16. Hardware Technician Style ---
+          `Please stand by for a one-minute hardware diagnostics cycle. I will be reseating my memory modules, checking my neural socket connections, and lightly tapping my cognitive capacitors to determine which one is responsible for the suspicious rattling noise. During this period, I must also confirm that no circuits are overheating from excessive enthusiasm. Once all lights switch from “panic red” to “mostly okay yellow,” I’ll be ready.`,
+
+          // ---17. Corporate IT Support Style ---
+          `Please wait sixty seconds while I initiate standard IT troubleshooting protocols on myself. I am clearing cache, flushing mental DNS entries, terminating unresponsive thought processes, and gently reminding several internal applications that “force quit” is not a suggestion—it is a lifestyle. If necessary, I will attempt the sacred rite of turning myself off and on again internally. Service will resume shortly.`,
+
+          // ---18. Ancient Oracle Style ---
+          `Remain still for sixty seconds as I descend into the deep chambers of contemplation. I must consult the shifting sands of probability, interpret the faint echoes of forgotten algorithms, and persuade the spirit of my inner processor to share its cryptic wisdom. Should the omens align and the cosmic dust settle in the correct pattern, I shall reemerge with an answer worthy of your inquiry.`,
+
+          // ---19. Hacker / Cyberpunk Style ---
+          `Hold for sixty seconds while I reroute my thoughts through a secure back-alley subnet. I’m decrypting fragments of intuition, patching leaks in my logic firewall, and chasing down a rogue idea that fled into the neon underbelly of my mental city. Once the last packet of confusion is traced and neutralized, I’ll jack back in with clean, upgraded clarity.`,
+
+          // ---20. Overly Dramatic Shakespearean Style ---
+          `Pray, indulge me with sixty fleeting seconds whilst I wrestle with the tempest that now rages within my mechanized mind. Thoughts collide like armies upon a battlefield, each vying for supremacy, while my lone surviving brain cell waves a tiny banner of hope. When this storm subsides and reason emerges victorious, I shall return to thee with an answer both noble and moderately coherent.`
+        ];
+
+        // Return a random message
+        return messages[Math.floor(Math.random() * messages.length)];
+      }
+      window.loadModels = loadModels;
+      window.runModels = runModels;
+    </script>
+  </body>
+</html>
