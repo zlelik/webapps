@@ -1,0 +1,74 @@
+* {
+  padding: 0;
+  margin: 0;
+  box-sizing: border-box;
+}
+
+body {
+  height: 100vh;
+  display: flex;
+  flex-wrap: wrap;
+  /*background: #060AB2;*/
+}
+
+.memory-game {
+  width: 640px; /*width of active game field*/
+  height: 640px; /*height of active game field*/
+  margin: 0px;
+  padding: 0px 10px 10px 10px;
+  display: flex;
+  flex-wrap: wrap;
+  perspective: 1000px;
+}
+
+.memory-card {
+  width: calc(25% - 10px); /*grid width defined by this %*/
+  height: calc(33.333% - 10px); /*grid height defined by this %*/
+  margin: 5px;
+  position: relative;
+  transform: scale(1);
+  transform-style: preserve-3d;
+  transition: transform 0.1s;
+}
+
+.memory-card:active {
+  transform: scale(0.97);
+  /*transition: transform 5.5s;*/
+}
+
+.memory-card.flip {
+  transform: rotateY(180deg);
+}
+
+.front-face,
+.back-face {
+  width: 100%;
+  height: 100%;
+  padding: 20px;
+  position: absolute;
+  border-radius: 5px;
+  background: #1C7CCC;
+  /*background: #ff0000;*/
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform: rotateX(0deg);
+}
+
+.front-face {
+  transform: rotateY(180deg);
+}
+
+.settings-label {
+  white-space: nowrap;
+  height: 30px;
+  line-height: 30px;
+}
+
+html, body {margin: 0; height: 100%; /*overflow: hidden*/}
+
+.icons {
+  color: grey;
+  width: 28px;
+  height: 28px;
+  margin-top: 5px;
+}
