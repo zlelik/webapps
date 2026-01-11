@@ -12,7 +12,7 @@ Miscellaneous web applications based on plain HTML and JavaScript
 [Memory Game](https://zlelik.github.io/webapps/memory-game/index.html).
 
 # Laptop/Phone Online Battery Test
-[Memory Game](https://zlelik.github.io/webapps/battery-test/battery-test.html).
+[Battery Test](https://zlelik.github.io/webapps/battery-test/battery-test.html).
 
 # Speaking Robot (Be Careful: Sarcastic mode can go wild sometimes).
-[Memory Game](https://zlelik.github.io/webapps/speaking-robot.html).
+[Speaking Robot](https://zlelik.github.io/webapps/speaking-robot.html).
