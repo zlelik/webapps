@@ -38,7 +38,7 @@ const HALO_BEAM_REFRESH_FPS = 5;
 const HALO_BEAM_REFRESH_INTERVAL = 1000 / HALO_BEAM_REFRESH_FPS;
 
 // --- Small bodies ---
-const TOTAL_SMALL_BODIES_MASS = 500 * M0;
+const TOTAL_SMALL_BODIES_MASS = 200 * M0;
 const SMALL_BODY_MIN_MASS = 0.001 * M0;
 const SMALL_BODY_MAX_MASS = 0.05 * M0;
 const SMALL_BODY_MIN_SPEED = 0.0001 * C;
@@ -404,11 +404,11 @@ function createInitialSmallBodies() {
   let totalMass = 0;
   
   // Create specific small bodygroup close to GS
-  const gen = GROUP_GENERATORS[3];
+  const gen = GROUP_GENERATORS[1];
   const params = makeRandomGroupParams();
   const gs = gameState.gs[0];
   params.N = 200;
-  params.centerX = gs.x - SCREEN_WIDTH_METERS*0.5;
+  params.centerX = gs.x - SCREEN_WIDTH_METERS*0.8;
   params.centerY = gs.y - SCREEN_WIDTH_METERS*0.1;
   params.vx = INITIAL_GS_SPEED*1.9;
   params.vy = -INITIAL_GS_SPEED*0.02;
@@ -515,10 +515,10 @@ function createSmallBodiesIfNeeded() {
 function makeRandomGroupParams() {
   return {
     // common
-    N: Math.floor(randomRange(20, 50)),
+    N: Math.floor(randomRange(50, 100)),
     centerX: randomRange(-UNIVERSE_RADIUS_METERS, UNIVERSE_RADIUS_METERS),
     centerY: randomRange(-UNIVERSE_RADIUS_METERS, UNIVERSE_RADIUS_METERS),
-    radius: randomRange(SCREEN_WIDTH_METERS * 0.2, SCREEN_WIDTH_METERS * 0.7),
+    radius: randomRange(SCREEN_WIDTH_METERS * 0.05, SCREEN_WIDTH_METERS * 0.3),
     vx: randomRange(-SMALL_BODY_MAX_SPEED, SMALL_BODY_MAX_SPEED),
     vy: randomRange(-SMALL_BODY_MAX_SPEED, SMALL_BODY_MAX_SPEED),
 
@@ -578,7 +578,7 @@ function createDiskGroup({
     const x = centerX + Math.cos(theta) * r;
     const y = centerY + Math.sin(theta) * r;
 
-    const mass = randomRange(SMALL_BODY_MIN_MASS, SMALL_BODY_MAX_MASS);
+    const mass = randomRange(SMALL_BODY_MIN_MASS*0.6, SMALL_BODY_MIN_MASS*0.9);
 
     bodies.push({
       id: gameState.nextBodyId++,
@@ -693,7 +693,7 @@ function createSphericalNebula({
     const x = centerX + Math.cos(theta) * r;
     const y = centerY + Math.sin(theta) * r;
 
-    const mass = randomRange(SMALL_BODY_MIN_MASS, SMALL_BODY_MAX_MASS);
+    const mass = randomRange(SMALL_BODY_MIN_MASS*0.6, SMALL_BODY_MIN_MASS*0.9);
 
     bodies.push({
       id: gameState.nextBodyId++,
@@ -733,10 +733,7 @@ function createComet({
     const x = centerX + Math.cos(a) * r;
     const y = centerY + Math.sin(a) * r;
 
-    const mass = randomRange(
-      SMALL_BODY_MIN_MASS,
-      SMALL_BODY_MAX_MASS
-    );
+    const mass = randomRange(SMALL_BODY_MIN_MASS*0.6, SMALL_BODY_MIN_MASS*0.9);
 
     bodies.push({
       id: gameState.nextBodyId++,
@@ -779,10 +776,7 @@ function createComet({
       Math.sin(angle) * dist +
       Math.sin(angle + Math.PI / 2) * jitter;
 
-    const mass = randomRange(
-      SMALL_BODY_MIN_MASS,
-      SMALL_BODY_MIN_MASS
-    );
+    const mass = randomRange(SMALL_BODY_MIN_MASS*0.6, SMALL_BODY_MIN_MASS*0.9);
 
     bodies.push({
       id: gameState.nextBodyId++,
@@ -869,7 +863,7 @@ function createFractalCloud({
       const x = cx + Math.cos(theta) * r;
       const y = cy + Math.sin(theta) * r;
 
-      const mass = randomRange(SMALL_BODY_MIN_MASS, SMALL_BODY_MAX_MASS);
+      const mass = randomRange(SMALL_BODY_MIN_MASS*0.6, SMALL_BODY_MIN_MASS*0.9);
 
       bodies.push({
         id: gameState.nextBodyId++,
@@ -907,7 +901,7 @@ function createRing({
     const x = centerX + Math.cos(theta) * r;
     const y = centerY + Math.sin(theta) * r;
 
-    const mass = randomRange(SMALL_BODY_MIN_MASS, SMALL_BODY_MAX_MASS);
+    const mass = randomRange(SMALL_BODY_MIN_MASS*0.6, SMALL_BODY_MIN_MASS*0.9);
 
     bodies.push({
       id: gameState.nextBodyId++,
@@ -942,7 +936,7 @@ function createCrossXShape({
     const x = centerX + t;
     const y = centerY + diagonal * t;
 
-    const mass = randomRange(SMALL_BODY_MIN_MASS, SMALL_BODY_MAX_MASS);
+    const mass = randomRange(SMALL_BODY_MIN_MASS*0.6, SMALL_BODY_MIN_MASS*0.9);
 
     bodies.push({
       id: gameState.nextBodyId++,
