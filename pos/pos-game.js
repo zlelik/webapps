@@ -94,6 +94,10 @@ let thrustIntervalId = null;
 let thrustDx = 0;
 let thrustDy = 0;
 
+let isGameOver = false;
+let gameOverOverlay = null;
+let explosionParticles = [];
+
 let gameState = {
   time: 0,
 
@@ -262,11 +266,13 @@ function startGameLoop() {
   //let lastTime = performance.now();
 
   app.ticker.add(() => {
-    /*const now = performance.now();
-    const dt = (now - lastTime) / 1000;
-    lastTime = now;*/
-    
     const dt = app.ticker.elapsedMS / 1000;
+
+    if (isGameOver) {
+      updateExplosion(dt);
+      return;
+    }
+    
 
     physicsAccumulator += dt;
     while (physicsAccumulator >= PHYSICS_DT) {
@@ -1259,8 +1265,6 @@ function renderLightningHalo(gs) {
   }
 }
 
-
-
 function drawLightningSegment(
   g,
   startX,
@@ -1525,6 +1529,98 @@ function drawLightning(startX, startY, endX, endY, segments = 10, maxWiggle = 30
   }
 }*/
 
+function triggerGSExplosion(gs) {
+  const center = worldToScreen(gs.x, gs.y);
+
+  for (let i = 0; i < 200; i++) {
+    const g = new PIXI.Graphics();
+    const angle = Math.random() * Math.PI * 2;
+    const speed = randomRange(200, 600);
+
+    g.beginFill(0xff0044);
+    g.circle(0, 0, randomRange(2, 4));
+    g.endFill();
+
+    g.x = center.x;
+    g.y = center.y;
+
+    explosionParticles.push({
+      gfx: g,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      life: randomRange(0.8, 1.5)
+    });
+
+    app.stage.addChild(g);
+  }
+}
+
+
+function updateExplosion(dt) {
+  for (let i = explosionParticles.length - 1; i >= 0; i--) {
+    const p = explosionParticles[i];
+
+    p.life -= dt;
+    p.gfx.x += p.vx * dt;
+    p.gfx.y += p.vy * dt;
+    p.gfx.alpha = Math.max(0, p.life);
+
+    if (p.life <= 0) {
+      app.stage.removeChild(p.gfx);
+      explosionParticles.splice(i, 1);
+    }
+  }
+}
+
+function showGameOverOverlay() {
+  gameOverOverlay = new PIXI.Container();
+
+  const bg = new PIXI.Graphics()
+    .rect(0, 0, app.screen.width, app.screen.height)
+    .fill({ color: 0x000000, alpha: 0.7 });
+
+  const panel = new PIXI.Graphics()
+    .rect(-150, -80, 300, 160)
+    .fill(0x111111)
+    .stroke({ color: 0xffffff, width: 2 });
+
+  panel.x = app.screen.width / 2;
+  panel.y = app.screen.height / 2;
+
+  const title = new PIXI.Text({
+    text: "GAME OVER",
+    style: { fill: 0xffffff, fontSize: 28 }
+  });
+  title.anchor.set(0.5);
+  title.x = panel.x;
+  title.y = panel.y - 40;
+
+  const button = new PIXI.Graphics()
+    .rect(-60, -20, 120, 40)
+    .fill(0x333333)
+    .stroke({ color: 0xffffff });
+
+  button.x = panel.x;
+  button.y = panel.y + 40;
+  button.interactive = true;
+  button.cursor = "pointer";
+
+  const btnText = new PIXI.Text({
+    text: "Restart",
+    style: { fill: 0xffffff, fontSize: 16 }
+  });
+  btnText.anchor.set(0.5);
+  btnText.x = panel.x;
+  btnText.y = panel.y + 40;
+
+  button.on("pointerdown", restartGame);
+
+  gameOverOverlay.addChild(bg, panel, title, button, btnText);
+  app.stage.addChild(gameOverOverlay);
+}
+
+
+
 function renderUI() {
   const gs = gameState.gs[0];
   ui.container.x = app.screen.width - UI_WIDTH - 10;
@@ -1713,7 +1809,44 @@ function formatTime(sec) {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
-function gameOver() {
+/*function gameOver() {
   console.log("GAME OVER");
   app.ticker.stop();
+}*/
+
+async function gameOver() {
+  if (isGameOver) return;
+  isGameOver = true;
+
+  stopThrust();
+  //app.ticker.stop();
+
+  triggerGSExplosion(gameState.gs[0]);
+  //add waiting time here.
+  await sleep(2000);
+  showGameOverOverlay();
+}
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function restartGame() {
+  app.stage.removeChildren();
+  explosionParticles.length = 0;
+  gameOverOverlay = null;
+  isGameOver = false;
+
+  gameState = {
+    time: 0,
+    nextBodyId: 1,
+    gs: [],
+    smallBodies: [],
+    stars: []
+  };
+
+  physicsAccumulator = 0;
+
+  initGame();
+  app.ticker.start();
 }
