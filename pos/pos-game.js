@@ -80,6 +80,8 @@ const SMALL_BODY_COLORS = [
   0xFFFFFF  // white
 ];
 
+const smallBodyTextureCache = new Map();
+
 /******************************************************************
  * 2. GLOBAL STATE
  ******************************************************************/
@@ -472,7 +474,7 @@ function createSmallBody(mass) {
 
   const x = Math.cos(theta) * r;
   const y = Math.sin(theta) * r;
-
+  const sprite = createSmallBodySprite(mass);
   return {
     id: gameState.nextBodyId++,
     mass: mass,
@@ -481,9 +483,25 @@ function createSmallBody(mass) {
     vx: Math.cos(angle) * speed,
     vy: Math.sin(angle) * speed,
     
-    sprite: new PIXI.Graphics(),
-    color: getColorByMass(mass)
+    sprite: sprite,
+    color: color
   };
+}
+
+function createSmallBodySprite(mass, colorArg = null) {
+  const radiusPx = metersToPixels(
+    smallBodyMassToRadiusMeters(mass)
+  );
+
+  const sprite = new PIXI.Sprite(
+    getSmallBodyTexture(radiusPx)
+  );
+
+  const color = colorArg ? colorArg : getColorByMass(mass);
+
+  sprite.anchor.set(0.5);
+  sprite.tint = color;
+  return sprite;
 }
 
 function createSmallBodiesIfNeeded() {
@@ -516,6 +534,21 @@ function createSmallBodiesIfNeeded() {
     gameState.smallBodies.push(newObj);
     currentMass += mass;
   }*/
+}
+
+function getSmallBodyTexture(radiusPx) {
+  const key = Math.round(radiusPx);
+
+  if (!smallBodyTextureCache.has(key)) {
+    const g = new PIXI.Graphics();
+    g.circle(key, key, key).fill(0xffffff);
+    smallBodyTextureCache.set(
+      key,
+      app.renderer.generateTexture(g)
+    );
+  }
+
+  return smallBodyTextureCache.get(key);
 }
 
 function makeRandomGroupParams() {
@@ -586,6 +619,8 @@ function createDiskGroup({
 
     const mass = randomRange(SMALL_BODY_MIN_MASS*0.6, SMALL_BODY_MIN_MASS*0.9);
 
+    const sprite = createSmallBodySprite(mass, color);
+
     bodies.push({
       id: gameState.nextBodyId++,
       mass,
@@ -593,7 +628,7 @@ function createDiskGroup({
       y,
       vx,
       vy,
-      sprite: new PIXI.Graphics(),
+      sprite: sprite,
       color: color || getColorByMass(mass)
     });
   }
@@ -633,6 +668,8 @@ function createSpiralGalaxy({
       SMALL_BODY_MIN_MASS + (SMALL_BODY_MAX_MASS - SMALL_BODY_MIN_MASS) * 0.1
     );
 
+    const sprite = createSmallBodySprite(mass, color);
+
     bodies.push({
       id: gameState.nextBodyId++,
       mass,
@@ -640,7 +677,7 @@ function createSpiralGalaxy({
       y,
       vx,
       vy,
-      sprite: new PIXI.Graphics(),
+      sprite: sprite,
       color: color || getColorByMass(mass)
     });
   }
@@ -664,6 +701,8 @@ function createSpiralGalaxy({
       SMALL_BODY_MIN_MASS + (SMALL_BODY_MAX_MASS - SMALL_BODY_MIN_MASS) * 0.1
     );
 
+    const sprite = createSmallBodySprite(mass, color);
+
     bodies.push({
       id: gameState.nextBodyId++,
       mass,
@@ -671,7 +710,7 @@ function createSpiralGalaxy({
       y,
       vx,
       vy,
-      sprite: new PIXI.Graphics(),
+      sprite: sprite,
       color: color || getColorByMass(mass)
     });
   }
@@ -700,6 +739,7 @@ function createSphericalNebula({
     const y = centerY + Math.sin(theta) * r;
 
     const mass = randomRange(SMALL_BODY_MIN_MASS*0.6, SMALL_BODY_MIN_MASS*0.9);
+    const sprite = createSmallBodySprite(mass, color);
 
     bodies.push({
       id: gameState.nextBodyId++,
@@ -708,7 +748,7 @@ function createSphericalNebula({
       y,
       vx,
       vy,
-      sprite: new PIXI.Graphics(),
+      sprite: sprite,
       color: color || getColorByMass(mass)
     });
   }
@@ -740,6 +780,7 @@ function createComet({
     const y = centerY + Math.sin(a) * r;
 
     const mass = randomRange(SMALL_BODY_MIN_MASS*0.6, SMALL_BODY_MIN_MASS*0.9);
+    const sprite = createSmallBodySprite(mass, color);
 
     bodies.push({
       id: gameState.nextBodyId++,
@@ -748,7 +789,7 @@ function createComet({
       y,
       vx,
       vy,
-      sprite: new PIXI.Graphics(),
+      sprite: sprite,
       color: color || getColorByMass(mass)
     });
   }
@@ -783,6 +824,7 @@ function createComet({
       Math.sin(angle + Math.PI / 2) * jitter;
 
     const mass = randomRange(SMALL_BODY_MIN_MASS*0.6, SMALL_BODY_MIN_MASS*0.9);
+    const sprite = createSmallBodySprite(mass, color);
 
     bodies.push({
       id: gameState.nextBodyId++,
@@ -791,7 +833,7 @@ function createComet({
       y,
       vx,
       vy,
-      sprite: new PIXI.Graphics(),
+      sprite: sprite,
       color: color || getColorByMass(mass)
     });
   }
@@ -870,6 +912,7 @@ function createFractalCloud({
       const y = cy + Math.sin(theta) * r;
 
       const mass = randomRange(SMALL_BODY_MIN_MASS*0.6, SMALL_BODY_MIN_MASS*0.9);
+      const sprite = createSmallBodySprite(mass, color);
 
       bodies.push({
         id: gameState.nextBodyId++,
@@ -878,7 +921,7 @@ function createFractalCloud({
         y,
         vx,
         vy,
-        sprite: new PIXI.Graphics(),
+        sprite: sprite,
         color: color || getColorByMass(mass)
       });
     }
@@ -908,6 +951,7 @@ function createRing({
     const y = centerY + Math.sin(theta) * r;
 
     const mass = randomRange(SMALL_BODY_MIN_MASS*0.6, SMALL_BODY_MIN_MASS*0.9);
+    const sprite = createSmallBodySprite(mass, color);
 
     bodies.push({
       id: gameState.nextBodyId++,
@@ -916,7 +960,7 @@ function createRing({
       y,
       vx,
       vy,
-      sprite: new PIXI.Graphics(),
+      sprite: sprite,
       color: getColorByMass(mass)
     });
   }
@@ -943,6 +987,7 @@ function createCrossXShape({
     const y = centerY + diagonal * t;
 
     const mass = randomRange(SMALL_BODY_MIN_MASS*0.6, SMALL_BODY_MIN_MASS*0.9);
+    const sprite = createSmallBodySprite(mass, color);
 
     bodies.push({
       id: gameState.nextBodyId++,
@@ -951,7 +996,7 @@ function createCrossXShape({
       y,
       vx,
       vy,
-      sprite: new PIXI.Graphics(),
+      sprite: sprite,
       color: color || getColorByMass(mass)
     });
   }
@@ -1029,7 +1074,8 @@ function updateSmallBodies(dt) {
     if (distanceToGS < (gsRadiusMeters + smallBodyRadiusMeters)) {
       //increase GS mass by the mass of absorbed small body
       gs.mass += obj.mass;
-      obj.sprite.clear();
+      //obj.sprite.clear();
+      app.stage.removeChild(obj.sprite);
       //remove small body
       gameState.smallBodies.splice(i, 1);
     }
@@ -1088,8 +1134,33 @@ function render() {
   renderUniverseBorder();
 }
 
-
 function renderSmallBodies() {
+  const gs = gameState.gs[0];
+
+  const halfW = SCREEN_WIDTH_METERS * 0.5;
+  const halfH = halfW * (app.screen.height / app.screen.width);
+  const padding = halfW * 0.05;
+
+  const minX = gs.x - halfW - padding;
+  const maxX = gs.x + halfW + padding;
+  const minY = gs.y - halfH - padding;
+  const maxY = gs.y + halfH + padding;
+
+  for (const obj of gameState.smallBodies) {
+    const visible = (obj.x >= minX && obj.x <= maxX) && (obj.y >= minY && obj.y <= maxY);
+
+    obj.sprite.visible = visible;
+
+    if (visible) {
+      const screenPos = worldToScreen(obj.x, obj.y);
+      obj.sprite.x = screenPos.x;
+      obj.sprite.y = screenPos.y;
+    }
+  }
+}
+
+
+/*function renderSmallBodies() {
   const gs = gameState.gs[0];
 
   const halfW = SCREEN_WIDTH_METERS * 0.5;
@@ -1116,7 +1187,7 @@ function renderSmallBodies() {
       obj.sprite.circle(screenPos.x, screenPos.y, radiusPx).fill(obj.color);
     }
   }
-}
+}*/
 
 /*function renderSmallBodies() {
   for (const obj of gameState.smallBodies) {
