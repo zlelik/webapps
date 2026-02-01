@@ -57,7 +57,13 @@ const GROUP_GENERATORS = [
 ];
 
 // --- Background ---
-const STAR_COUNT = 3000;
+//const STAR_COUNT = 3000;
+
+// --- Background ---
+const BASELINE_WIDTH = 1920;
+const BASELINE_HEIGHT = 1080;
+const BASELINE_STAR_COUNT = 3000;
+
 const STAR_SIZE_MIN = 1;
 const STAR_SIZE_MAX = 4;
 
@@ -321,6 +327,8 @@ function createStars() {
   starsContainer.addChild(starsGraphics);
   app.stage.addChild(starsContainer);
 
+  const STAR_COUNT = computeStarCount();
+
   for (let i = 0; i < STAR_COUNT; i++) {
     const theta = Math.random() * Math.PI * 2;
     const r = UNIVERSE_RADIUS_METERS * Math.sqrt(Math.random());
@@ -339,47 +347,19 @@ function createStars() {
 
 }
 
-/*function createStars() {
-  starsGraphics = new PIXI.Graphics();
-  app.stage.addChild(starsGraphics);
+function computeStarCount() {
+  const currentArea = app.screen.width * app.screen.height;
+  const baselineArea = BASELINE_WIDTH * BASELINE_HEIGHT;
 
-  for (let i = 0; i < STAR_COUNT; i++) {
-    const theta = Math.random() * Math.PI * 2;
-    const r = UNIVERSE_RADIUS_METERS * Math.sqrt(Math.random());
+  const scale = currentArea / baselineArea;
 
-    gameState.stars.push({
-      x: Math.cos(theta) * r,
-      y: Math.sin(theta) * r,
-      radius: randomRange(STAR_SIZE_MIN, STAR_SIZE_MAX)
-    });
-  }
-}*/
+  const minStars = 500;
+  const maxStars = 15000;
 
-/*function createStars() {
-  for (let i = 0; i < STAR_COUNT; i++) {
-    const starSprite = new PIXI.Graphics();
-    const radiusPx = randomRange(STAR_SIZE_MIN, STAR_SIZE_MAX);
-    starSprite.circle(0, 0, radiusPx).fill(0xffffff);
-
-    // Uniform random position inside universe circle (physical meters)
-    const theta = Math.random() * Math.PI * 2;
-    //const r = UNIVERSE_RADIUS_METERS * Math.sqrt(Math.random());
-    const r = UNIVERSE_RADIUS_METERS * Math.random();
-
-    const x = Math.cos(theta) * r;
-    const y = Math.sin(theta) * r;
-  
-    const star = {
-      x: x,
-      y: y,
-      radius: radiusPx,
-      sprite: new PIXI.Graphics()
-    };
-
-    gameState.stars.push(star);
-    app.stage.addChild(star.sprite);
-  }
-}*/
+  return Math.round(
+    Math.min(maxStars, Math.max(minStars, BASELINE_STAR_COUNT * scale))
+  );
+}
 
 function createUI() {
   ui.container = new PIXI.Container();
