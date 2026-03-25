@@ -392,18 +392,18 @@ function createInitialSmallBodies() {
   let totalMass = 0;
   
   // Create specific small bodygroup close to GS
-  const gen = GROUP_GENERATORS[4];
+  const gen = GROUP_GENERATORS[1];
   const params = makeRandomGroupParams();
   const gs = gameState.gs[0];
-  params.N = 1000;
+  params.N = 200;
   params.centerX = gs.x - SCREEN_WIDTH_METERS*0.8;
   params.centerY = gs.y - SCREEN_WIDTH_METERS*0.1;
   params.vx = INITIAL_GS_SPEED*1.9;
   params.vy = -INITIAL_GS_SPEED*0.02;
-  params.radius = SCREEN_WIDTH_METERS*0.5;
+  params.radius = SCREEN_WIDTH_METERS*0.15;
   params.color = gen.color;
   //params.color = 0xade0ff;
-  //params.armTightness = 2;
+  params.armTightness = 2;
   const specialGroup = gen.create(params);
   
   for (const obj of specialGroup) {
