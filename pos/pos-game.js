@@ -38,22 +38,22 @@ const HALO_BEAM_REFRESH_FPS = 5;
 const HALO_BEAM_REFRESH_INTERVAL = 1000 / HALO_BEAM_REFRESH_FPS;
 
 // --- Small bodies ---
-const TOTAL_SMALL_BODIES_MASS = 200 * M0;
+const TOTAL_SMALL_BODIES_MASS = 50 * M0;
 const SMALL_BODY_MIN_MASS = 0.001 * M0;
 const SMALL_BODY_MAX_MASS = 0.05 * M0;
 const SMALL_BODY_MIN_SPEED = 0.0001 * C;
 const SMALL_BODY_MAX_SPEED = 0.001 * C;
-const SMALL_BODY_INFLUENCE_RADIUS_MULT = 5;
+const SMALL_BODY_INFLUENCE_RADIUS_MULT = 7;
 const SMALL_BODY_DENSITY = 1e-14; // kg/m³
 
 const GROUP_GENERATORS = [
-  { name: "disk",    weight: 1, color: 0x00FF00, create: createDiskGroup },
-  { name: "spiral",  weight: 1, color: 0xade0ff, create: createSpiralGalaxy },
-  { name: "nebula",  weight: 1, color: 0xefc7ff, create: createSphericalNebula },
-  { name: "comet",   weight: 1, color: 0xadf7c2, create: createComet },
-  { name: "fractal", weight: 1, color: 0xffbb00, create: createFractalCloud },
-  { name: "ring",    weight: 1, color: 0xFFFFFF, create: createRing },
-  { name: "cross",   weight: 1, color: 0xf5ff6e, create: createCrossXShape }
+  { name: "disk",    weight: 1, color: 0x00FF00, create: createDiskGroup },// green
+  { name: "spiral",  weight: 1, color: 0xade0ff, create: createSpiralGalaxy },//light blue
+  { name: "globular_cluster",  weight: 1, color: 0xefc7ff, create: createGlobularCluster },// purple
+  { name: "comet",   weight: 1, color: 0xadf7c2, create: createComet },//light green
+  { name: "fractal", weight: 1, color: 0xffa600, create: createFractalCloud },//orange
+  { name: "ring",    weight: 1, color: 0xFFFFFF, create: createRing },//white
+  { name: "cross",   weight: 1, color: 0xf5ff6e, create: createCrossXShape }//yellow-green
 ];
 
 // --- Background ---
@@ -62,7 +62,7 @@ const GROUP_GENERATORS = [
 // --- Background ---
 const BASELINE_WIDTH = 1920;
 const BASELINE_HEIGHT = 1080;
-const BASELINE_STAR_COUNT = 3000;
+const BASELINE_STAR_COUNT = 1000;
 
 const STAR_SIZE_MIN = 1;
 const STAR_SIZE_MAX = 4;
@@ -128,7 +128,7 @@ let ui = {};
   await initPixi();
   initGame();
   initInput();
-  startGameLoop();
+  setTimeout(startGameLoop, 2000);//startGameLoop();
 })();
 
 
@@ -392,15 +392,15 @@ function createInitialSmallBodies() {
   let totalMass = 0;
   
   // Create specific small bodygroup close to GS
-  const gen = GROUP_GENERATORS[1];
+  const gen = GROUP_GENERATORS[4];
   const params = makeRandomGroupParams();
   const gs = gameState.gs[0];
-  params.N = 200;
+  params.N = 1000;
   params.centerX = gs.x - SCREEN_WIDTH_METERS*0.8;
   params.centerY = gs.y - SCREEN_WIDTH_METERS*0.1;
   params.vx = INITIAL_GS_SPEED*1.9;
   params.vy = -INITIAL_GS_SPEED*0.02;
-  params.radius = SCREEN_WIDTH_METERS*0.1;
+  params.radius = SCREEN_WIDTH_METERS*0.5;
   params.color = gen.color;
   //params.color = 0xade0ff;
   //params.armTightness = 2;
@@ -545,9 +545,6 @@ function makeRandomGroupParams() {
     armCount: Math.random() < 0.5 ? 2 : 4,
     armTightness: randomRange(1.5, 3),
 
-    // nebula
-    densityBias: randomRange(0.7, 2.0),
-
     // ring
     ringWidthFactor: randomRange(0.08, 0.2),
 
@@ -560,6 +557,9 @@ function makeRandomGroupParams() {
 function createRandomSmallBodiesGroup() {
   const gen = pickRandomGenerator(GROUP_GENERATORS);
   const params = makeRandomGroupParams();
+  if (gen.name == "fractal") {
+    gen.N = Math.floor(randomRange(950, 1100));
+  }
   params.color = gen.color;
   return gen.create(params);
 }
@@ -698,8 +698,87 @@ function createSpiralGalaxy({
   return bodies;
 }
 
+function randomGaussian(sigma) {
+  let u = 0, v = 0;
+  while (u === 0) u = Math.random();
+  while (v === 0) v = Math.random();
 
-function createSphericalNebula({
+  return sigma * Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+}
+
+
+function createGlobularCluster({
+  N,
+  centerX,
+  centerY,
+  radius,
+  vx = 0,
+  vy = 0,
+  color
+}) {
+  const bodies = [];
+
+  const sigma = radius * randomRange(0.3, 0.5);
+  const radiusMax = radius;//3 * sigma;
+
+  // number of radial filaments
+  const lineCount = Math.floor(randomRange(15, 25));
+
+  // precompute filament angles
+  const angles = [];
+  for (let i = 0; i < lineCount; i++) {
+    angles.push((i / lineCount) * Math.PI * 2);
+  }
+
+  const jitter = radius * randomRange(0.02, 0.04);
+
+  while (bodies.length < N) {
+    // choose filament
+    const a = angles[Math.floor(Math.random() * angles.length)];
+
+    // 1D Gaussian along the filament
+    const r = Math.abs(randomGaussian(sigma));
+    if (r > radiusMax) continue;
+
+    // perpendicular jitter
+    const offset = randomGaussian(jitter);
+
+    const cosA = Math.cos(a);
+    const sinA = Math.sin(a);
+
+    const x =
+      centerX +
+      r * cosA -
+      offset * sinA;
+
+    const y =
+      centerY +
+      r * sinA +
+      offset * cosA;
+
+    const mass = randomRange(
+      SMALL_BODY_MIN_MASS * 0.6,
+      SMALL_BODY_MIN_MASS * 0.9
+    );
+
+    bodies.push({
+      id: gameState.nextBodyId++,
+      mass,
+      x,
+      y,
+      vx,
+      vy,
+      sprite: createSmallBodySprite(mass, color),
+      color
+    });
+  }
+
+  return bodies;
+}
+
+
+
+/*function createSphericalNebula({
   N,
   centerX,
   centerY,
@@ -734,7 +813,7 @@ function createSphericalNebula({
   }
 
   return bodies;
-}
+}*/
 
 function createComet({
   N,
@@ -867,48 +946,140 @@ function createComet({
 
 
 function createFractalCloud({
-  N,
-  centerX,
-  centerY,
-  radius,
-  vx,
-  vy,
-  color
+  N,
+  centerX,
+  centerY,
+  radius,
+  vx,
+  vy,
+  color
 }) {
-  const bodies = [];
-  const clusters = 4;
+  const bodies = [];
 
-  for (let c = 0; c < clusters; c++) {
-    const cx = centerX + randomRange(-radius, radius);
-    const cy = centerY + randomRange(-radius, radius);
+  // ---- Mandelbrot zoom parameters (chosen region) ----
+  const fractalScale = 3.5643053873601143e-9;//2.2808981735594034e-9;//0.0000000025;
+  const fractalCenterX = 0.2937032657404631;//-0.7436334;
+  const fractalCenterY = 0.018861246195852877;//0.1318748;
+  const maxIter = 300;//250;
 
-    const count = Math.floor(N / clusters);
+  const sampleSize = 800;
+  const halfSample = sampleSize / 2;
 
-    for (let i = 0; i < count; i++) {
-      const r = radius * 0.3 * Math.sqrt(Math.random());
-      const theta = Math.random() * Math.PI * 2;
+  while (bodies.length < N) {
 
-      const x = cx + Math.cos(theta) * r;
-      const y = cy + Math.sin(theta) * r;
+    // random point in sampling window
+    const px = Math.random() * sampleSize - halfSample;
+    const py = Math.random() * sampleSize - halfSample;
 
-      const mass = randomRange(SMALL_BODY_MIN_MASS*0.6, SMALL_BODY_MIN_MASS*0.9);
-      const sprite = createSmallBodySprite(mass, color);
+    // convert to Mandelbrot complex coordinate
+    const x0 = fractalCenterX + px * fractalScale;
+    const y0 = fractalCenterY + py * fractalScale;
 
-      bodies.push({
-        id: gameState.nextBodyId++,
-        mass,
-        x,
-        y,
-        vx,
-        vy,
-        sprite: sprite,
-        color: color || getColorByMass(mass)
-      });
-    }
-  }
+    let x = 0;
+    let y = 0;
+    let iter = 0;
 
-  return bodies;
+    while (x * x + y * y <= 4 && iter < maxIter) {
+      const xt = x * x - y * y + x0;
+      y = 2 * x * y + y0;
+      x = xt;
+      iter++;
+    }
+
+    // keep Mandelbrot interior points
+    if (iter === maxIter) {
+
+      // map fractal sampling window → physical radius
+      const xLocal = (px / halfSample) * radius;
+      const yLocal = (py / halfSample) * radius;
+
+      const mass = randomRange(SMALL_BODY_MIN_MASS * 0.5, SMALL_BODY_MIN_MASS * 0.7);
+
+      bodies.push({
+        id: gameState.nextBodyId++,
+        mass,
+        x: centerX + xLocal,
+        y: centerY + yLocal,
+        vx,
+        vy,
+        sprite: createSmallBodySprite(mass, color),
+        color
+      });
+    }
+  }
+
+  return bodies;
 }
+
+
+/*function createFractalCloud({
+  N,
+  centerX,
+  centerY,
+  radius,
+  vx,
+  vy,
+  color
+}) {
+  const bodies = [];
+
+  // Mandelbrot zoom parameters you selected
+  const fractalScale = 0.0000000025;
+  const fractalCenterX = -0.7436334;
+  const fractalCenterY = 0.1318748;
+  const maxIter = 650;//250;
+
+  const sampleSize = 800;
+  const halfSample = sampleSize / 2;
+
+  for (let px = 0; px < sampleSize && bodies.length < N; px++) {
+    for (let py = 0; py < sampleSize && bodies.length < N; py++) {
+
+      const fx = px - halfSample;
+      const fy = py - halfSample;
+
+      const x0 = fractalCenterX + fx * fractalScale;
+      const y0 = fractalCenterY + fy * fractalScale;
+
+      let x = 0;
+      let y = 0;
+      let iter = 0;
+
+      while (x * x + y * y <= 4 && iter < maxIter) {
+        const xt = x * x - y * y + x0;
+        y = 2 * x * y + y0;
+        x = xt;
+        iter++;
+      }
+
+      if (iter === maxIter) {
+
+        // convert fractal grid → physical radius
+        const xLocal = (fx / halfSample) * radius;
+        const yLocal = (fy / halfSample) * radius;
+
+        const mass = randomRange(
+          SMALL_BODY_MIN_MASS * 0.6,
+          SMALL_BODY_MIN_MASS * 0.9
+        );
+
+        bodies.push({
+          id: gameState.nextBodyId++,
+          mass,
+          x: centerX + xLocal,
+          y: centerY + yLocal,
+          vx,
+          vy,
+          sprite: createSmallBodySprite(mass, color),
+          color
+        });
+      }
+    }
+  }
+
+  return bodies;
+}
+*/
 
 
 function createRing({
@@ -1072,7 +1243,10 @@ function applyMomentumThrust(dx, dy) {
   const gs = gameState.gs[0];
   if (!gs) return;
 
-  if (dx === 0 && dy === 0) return;
+  const thrustNorm = Math.hypot(dx, dy);
+  if (thrustNorm === 0) return;
+  const nx = dx / thrustNorm;
+  const ny = dy / thrustNorm;
 
   if (gs.mass <= DELTA_MASS_EJECTION) return;
 
@@ -1082,23 +1256,42 @@ function applyMomentumThrust(dx, dy) {
   // Radiation momentum: p = Δm * c
   const recoilMomentum = DELTA_MASS_EJECTION * C;
 
-  // Project current GS velocity onto thrust direction
-  const vParallel = gs.vx * dx + gs.vy * dy;
+  // Effective recoil speed from relativistic momentum:
+  // p = gamma*m*u  =>  u = (p*c) / sqrt((m*c)^2 + p^2)
+  // This keeps u strictly subluminal without ad-hoc clamps.
+  const mc = gs.mass * C;
+  const u = (recoilMomentum * C) / Math.sqrt(mc * mc + recoilMomentum * recoilMomentum);
 
-  // Effective recoil velocity
-  const u = recoilMomentum / gs.mass;
+  // Decompose current velocity into components parallel/perpendicular to thrust axis
+  const vParallel = gs.vx * nx + gs.vy * ny;
+  const vPerpX = gs.vx - nx * vParallel;
+  const vPerpY = gs.vy - ny * vParallel;
 
-  // Relativistic velocity addition along thrust axis
-  const vParallelNew =
-    (vParallel + u) / (1 + (vParallel * u) / (C * C));
+  // Full relativistic velocity composition for boost along thrust axis
+  const c2 = C * C;
+  const gammaU = 1 / Math.sqrt(1 - (u * u) / c2);
+  const denom = 1 + (vParallel * u) / c2;
+  if (denom <= 1e-12) return;
 
-  const dv = vParallelNew - vParallel;
+  const vParallelNew = (vParallel + u) / denom;
+  const vPerpScale = 1 / (gammaU * denom);
+  const vPerpXNew = vPerpX * vPerpScale;
+  const vPerpYNew = vPerpY * vPerpScale;
 
-  // Apply velocity change
-  gs.vx += dx * dv;
-  gs.vy += dy * dv;
+  gs.vx = nx * vParallelNew + vPerpXNew;
+  gs.vy = ny * vParallelNew + vPerpYNew;
+
+  limitVelocity(gs, MAX_SPEED);
 }
 
+function limitVelocity(body, maxSpeed) {
+  const speed = Math.hypot(body.vx, body.vy);
+  if (speed <= maxSpeed) return;
+
+  const scale = maxSpeed / speed;
+  body.vx *= scale;
+  body.vy *= scale;
+}
 
 
 /******************************************************************
