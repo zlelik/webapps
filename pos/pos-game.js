@@ -9,10 +9,25 @@ const G = 6.67430e-11;      // m^3 kg^-1 s^-2
 const C = 299792458;       // m/s
 const HBAR = 1.054571817e-34;  // J·s
 
+// --- Gravitational Singularity ---
+const M0 = 1.52786e6; // kg
+const INITIAL_GS_SPEED = 0.1 * C;
+const MAX_SPEED = C;
+const INITIAL_HALO_ALPHA = 1;
+const HALO_SCALE = 2; // halo diameter multiplier
+const INNER_FADE_RADIUS = 1; // start fading at GS radius
+
 // --- Timing ---
 const PHYSICS_FPS = 40;
 const PHYSICS_DT = 1 / PHYSICS_FPS;
+const THRUST_DELTA_MASS_EJECTION = M0 * 0.01;
+const THRUST_MASS_RATIO = 0.1;
 const THRUST_REPEAT_MS = 50;
+const THRUST_BEAM_LENGTH_SCREEN_RATIO = 1.5;
+const THRUST_BEAM_FINAL_WIDTH_MULTIPLIER = 2;
+const THRUST_BEAM_ALPHA = 0.2;
+const THRUST_BEAM_DURATION_MS = 300;
+const THRUST_BEAM_COLOR = 0xFFFF00;
 
 // --- Scaling ---
 const SCREEN_WIDTH_METERS = 1.49896e8;
@@ -21,14 +36,6 @@ const UNIVERSE_RADIUS_METERS = UNIVERSE_DIAMETER_METERS / 2;
 const GS_INITIAL_SCREEN_RATIO = 0.03;
 const STAR_PARALLAX_FACTOR = 0.05;
 const GRAVITY_SCALE = 1e27; // tune this to adjust gravitational strength
-
-// --- Gravitational Singularity ---
-const M0 = 1.52786e6; // kg
-const INITIAL_GS_SPEED = 0.1 * C;
-const MAX_SPEED = C;
-const INITIAL_HALO_ALPHA = 1;
-const HALO_SCALE = 2; // halo diameter multiplier
-const INNER_FADE_RADIUS = 1; // start fading at GS radius
 
 const HALO_BEAM_COUNT = 100;
 const HALO_BEAM_WIGGLE = 25;
@@ -67,12 +74,9 @@ const BASELINE_STAR_COUNT = 1000;
 const STAR_SIZE_MIN = 1;
 const STAR_SIZE_MAX = 4;
 
-// --- Input ---
-const DELTA_MASS_EJECTION = M0 * 0.01;
-
 // --- UI ---
 const UI_WIDTH = 300;
-const UI_HEIGHT = 110;
+const UI_HEIGHT = 150;
 
 
 const SMALL_BODY_COLORS = [
@@ -101,6 +105,8 @@ let starsGraphics;
 let thrustIntervalId = null;
 let thrustDx = 0;
 let thrustDy = 0;
+let pointerThrustActive = false;
+const activeKeys = new Set();
 
 let isGameOver = false;
 let gameOverOverlay = null;
@@ -108,6 +114,7 @@ let explosionParticles = [];
 
 let gameState = {
   time: 0,
+  maxMass: 0,
 
   nextBodyId: 1,
 
@@ -169,77 +176,116 @@ function initInput() {
   window.addEventListener("keyup", onKeyUp);
 
   window.addEventListener("mousedown", onPointerDown);
-  window.addEventListener("mouseup", stopThrust);
+  window.addEventListener("mousemove", onPointerMove);
+  window.addEventListener("mouseup", onPointerUp);
+  window.addEventListener("mouseleave", onPointerUp);
 
-  window.addEventListener("touchstart", onPointerDown, { passive: true });
-  window.addEventListener("touchend", stopThrust);
+  window.addEventListener("touchstart", onPointerDown, { passive: false });
+  window.addEventListener("touchmove", onPointerMove, { passive: false });
+  window.addEventListener("touchend", onPointerUp);
+  window.addEventListener("touchcancel", onPointerUp);
 }
 
 function onKeyDown(e) {
-  if (thrustIntervalId !== null) return; // already thrusting
-
-  let dx = 0, dy = 0;
-
-  if (e.key === "ArrowLeft") dx = -1;
-  if (e.key === "ArrowRight") dx = 1;
-  if (e.key === "ArrowUp") dy = -1;
-  if (e.key === "ArrowDown") dy = 1;
-
-  if (dx || dy) startThrust(dx, dy);
+  if (!isArrowKey(e.key)) return;
+  e.preventDefault();
+  activeKeys.add(e.key);
+  refreshKeyboardThrust();
 }
 
 function onKeyUp(e) {
-  if (
-    e.key === "ArrowLeft" ||
-    e.key === "ArrowRight" ||
-    e.key === "ArrowUp" ||
-    e.key === "ArrowDown"
-  ) {
-    stopThrust();
-  }
+  if (!isArrowKey(e.key)) return;
+  e.preventDefault();
+  activeKeys.delete(e.key);
+  refreshKeyboardThrust();
+}
+
+function isArrowKey(key) {
+  return (
+    key === "ArrowLeft" ||
+    key === "ArrowRight" ||
+    key === "ArrowUp" ||
+    key === "ArrowDown"
+  );
 }
 
 function onPointerDown(e) {
-  let x, y;
+  e.preventDefault();
+  pointerThrustActive = true;
+  updatePointerThrustDirection(e);
+}
 
-  if (e.touches && e.touches.length > 0) {
-    x = e.touches[0].clientX;
-    y = e.touches[0].clientY;
-  } else {
-    x = e.clientX;
-    y = e.clientY;
-  }
+function onPointerMove(e) {
+  if (!pointerThrustActive) return;
+  e.preventDefault();
+  updatePointerThrustDirection(e);
+}
+
+function onPointerUp() {
+  pointerThrustActive = false;
+  refreshKeyboardThrust();
+}
+
+function updatePointerThrustDirection(e) {
+  const pos = getPointerPosition(e);
+  if (!pos) return;
+
+  const x = pos.x;
+  const y = pos.y;
 
   const cx = window.innerWidth / 2;
   const cy = window.innerHeight / 2;
 
-  const dxp = x - cx;
-  const dyp = y - cy;
-
-  let dx = 0, dy = 0;
-
-  if (Math.abs(dxp) > Math.abs(dyp)) {
-    dx = dxp > 0 ? 1 : -1;
-  } else {
-    dy = dyp > 0 ? 1 : -1;
-  }
-
-  startThrust(dx, dy);
+  const dx = x - cx;
+  const dy = y - cy;
+  setThrust(dx, dy);
 }
 
-function startThrust(dx, dy) {
-  stopThrust(); // safety
+function getPointerPosition(e) {
+  if (e.touches && e.touches.length > 0) {
+    return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  }
+  if (e.changedTouches && e.changedTouches.length > 0) {
+    return { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
+  }
+  if (typeof e.clientX === "number" && typeof e.clientY === "number") {
+    return { x: e.clientX, y: e.clientY };
+  }
+  return null;
+}
 
-  thrustDx = dx;
-  thrustDy = dy;
+function refreshKeyboardThrust() {
+  if (pointerThrustActive) return;
+  const dx = (activeKeys.has("ArrowRight") ? 1 : 0) - (activeKeys.has("ArrowLeft") ? 1 : 0);
+  const dy = (activeKeys.has("ArrowDown") ? 1 : 0) - (activeKeys.has("ArrowUp") ? 1 : 0);
+  setThrust(dx, dy);
+}
 
-  // Fire immediately
-  applyMomentumThrust(dx, dy);
+function setThrust(dx, dy) {
+  const norm = Math.hypot(dx, dy);
+  if (norm === 0) {
+    stopThrust();
+    return;
+  }
 
-  // Repeat while held
-  thrustIntervalId = setInterval(() => {
+  const nextDx = dx / norm;
+  const nextDy = dy / norm;
+  const directionChanged = nextDx !== thrustDx || nextDy !== thrustDy;
+
+  thrustDx = nextDx;
+  thrustDy = nextDy;
+
+  if (thrustIntervalId === null) {
     applyMomentumThrust(thrustDx, thrustDy);
-  }, THRUST_REPEAT_MS);
+    thrustIntervalId = setInterval(() => {
+      applyMomentumThrust(thrustDx, thrustDy);
+    }, THRUST_REPEAT_MS);
+    return;
+  }
+
+  if (directionChanged) {
+    applyMomentumThrust(thrustDx, thrustDy);
+  }
 }
 
 function stopThrust() {
@@ -248,23 +294,6 @@ function stopThrust() {
     thrustIntervalId = null;
   }
 }
-
-
-/*function initInput() {
-  window.addEventListener("keydown", onKeyDown);
-}
-
-function onKeyDown(e) {
-  let dx = 0, dy = 0;
-
-  if (e.key === "ArrowLeft") dx = -1;
-  if (e.key === "ArrowRight") dx = 1;
-  if (e.key === "ArrowUp") dy = -1;
-  if (e.key === "ArrowDown") dy = 1;
-
-  if (dx || dy) applyMomentumThrust(dx, dy);
-}*/
-
 
 /******************************************************************
  * 7. GAME LOOP
@@ -298,7 +327,7 @@ function startGameLoop() {
  ******************************************************************/
 
 function createGS() {
-  const gs = {
+  const gs = {
     id: gameState.nextBodyId++,
     mass: M0,
     radiusRatio: GS_INITIAL_SCREEN_RATIO,
@@ -309,12 +338,16 @@ function createGS() {
     sprite: new PIXI.Graphics(),
     halo: new PIXI.Graphics(),
     haloLastUpdateTime: 0,
-    lightningHalo: new PIXI.Graphics() 
+    lightningHalo: new PIXI.Graphics(),
+    thrustBeam: new PIXI.Graphics(),
+    thrustBeamEffect: null
   };
   gs.lightningHalo.filters = [new PIXI.BlurFilter({ strength: 8, quality: 4 })];
   gameState.gs.push(gs);
+  gameState.maxMass = gs.mass;
   
   app.stage.addChild(gs.halo);
+  app.stage.addChild(gs.thrustBeam);
   app.stage.addChild(gs.sprite);
   app.stage.addChild(gs.lightningHalo);
 }
@@ -395,7 +428,7 @@ function createInitialSmallBodies() {
   const gen = GROUP_GENERATORS[1];
   const params = makeRandomGroupParams();
   const gs = gameState.gs[0];
-  params.N = 200;
+  params.N = 150;
   params.centerX = gs.x - SCREEN_WIDTH_METERS*0.8;
   params.centerY = gs.y - SCREEN_WIDTH_METERS*0.1;
   params.vx = INITIAL_GS_SPEED*1.9;
@@ -403,7 +436,7 @@ function createInitialSmallBodies() {
   params.radius = SCREEN_WIDTH_METERS*0.15;
   params.color = gen.color;
   //params.color = 0xade0ff;
-  params.armTightness = 2;
+  //params.armTightness = 2;
   const specialGroup = gen.create(params);
   
   for (const obj of specialGroup) {
@@ -549,7 +582,10 @@ function makeRandomGroupParams() {
     ringWidthFactor: randomRange(0.08, 0.2),
 
     // comet
-    cometSpeedFactor: randomRange(1.5, 2.5)
+    cometSpeedFactor: randomRange(1.5, 2.5),
+
+    // cross
+    crossWidth: Math.random() < 0.5 ? 2 : 3
   };
 }
 
@@ -1126,31 +1162,53 @@ function createCrossXShape({
   radius,
   vx,
   vy,
-  color
+  color,
+  crossWidth = 1
 }) {
   const bodies = [];
+  const width = Math.max(1, Math.floor(crossWidth));
+  const avgMass = SMALL_BODY_MIN_MASS * 0.75;
+  const laneSpacing = smallBodyMassToRadiusMeters(avgMass) * 2.2;
+  const laneOffsets = Array.from({ length: width }, (_, i) => i - (width - 1) / 2);
 
-  for (let i = 0; i < N; i++) {
-    const t = randomRange(-radius, radius);
-    const diagonal = Math.random() < 0.5 ? 1 : -1;
+  function addCrossBody(t, diagonal, laneOffsetMeters) {
+    if (bodies.length >= N) return;
 
-    const x = centerX + t;
-    const y = centerY + diagonal * t;
+    const perpX = -diagonal;
+    const perpY = 1;
+    const x = centerX + t + laneOffsetMeters * perpX;
+    const y = centerY + diagonal * t + laneOffsetMeters * perpY;
+    const mass = randomRange(SMALL_BODY_MIN_MASS*0.6, SMALL_BODY_MIN_MASS*0.9);
+    const sprite = createSmallBodySprite(mass, color);
 
-    const mass = randomRange(SMALL_BODY_MIN_MASS*0.6, SMALL_BODY_MIN_MASS*0.9);
-    const sprite = createSmallBodySprite(mass, color);
+    bodies.push({
+      id: gameState.nextBodyId++,
+      mass,
+      x,
+      y,
+      vx,
+      vy,
+      sprite: sprite,
+      color: color || getColorByMass(mass)
+    });
+  }
 
-    bodies.push({
-      id: gameState.nextBodyId++,
-      mass,
-      x,
-      y,
-      vx,
-      vy,
-      sprite: sprite,
-      color: color || getColorByMass(mass)
-    });
-  }
+  // Distribute N bodies evenly across cross lines and place points uniformly.
+  const basePerLane = Math.floor(N / width);
+  let remainder = N % width;
+
+  for (let lane = 0; lane < width && bodies.length < N; lane++) {
+    const laneCount = basePerLane + (remainder > 0 ? 1 : 0);
+    if (remainder > 0) remainder--;
+    const laneOffsetMeters = laneOffsets[lane] * laneSpacing;
+
+    for (let i = 0; i < laneCount && bodies.length < N; i++) {
+      const diagonal = i % 2 === 0 ? 1 : -1;
+      const t =
+        -radius + ((i + Math.random()) / Math.max(1, laneCount)) * (2 * radius);
+      addCrossBody(t, diagonal, laneOffsetMeters);
+    }
+  }
 
   return bodies;
 }
@@ -1177,6 +1235,8 @@ function updateGSState(dt) {
     gameOver();
     return;
   }
+
+  gameState.maxMass = Math.max(gameState.maxMass, gs.mass);
 
   // --- Motion ---
   gs.x += gs.vx * dt;
@@ -1248,13 +1308,13 @@ function applyMomentumThrust(dx, dy) {
   const nx = dx / thrustNorm;
   const ny = dy / thrustNorm;
 
-  if (gs.mass <= DELTA_MASS_EJECTION) return;
+  if (gs.mass <= THRUST_DELTA_MASS_EJECTION) return;
 
   // Mass loss
-  gs.mass -= DELTA_MASS_EJECTION;
+  gs.mass -= THRUST_DELTA_MASS_EJECTION * THRUST_MASS_RATIO;
 
   // Radiation momentum: p = Δm * c
-  const recoilMomentum = DELTA_MASS_EJECTION * C;
+  const recoilMomentum = THRUST_DELTA_MASS_EJECTION * C;
 
   // Effective recoil speed from relativistic momentum:
   // p = gamma*m*u  =>  u = (p*c) / sqrt((m*c)^2 + p^2)
@@ -1282,6 +1342,7 @@ function applyMomentumThrust(dx, dy) {
   gs.vy = ny * vParallelNew + vPerpYNew;
 
   limitVelocity(gs, MAX_SPEED);
+  triggerThrustBeam(gs, nx, ny);
 }
 
 function limitVelocity(body, maxSpeed) {
@@ -1444,6 +1505,7 @@ function renderStars() {
 
 function renderGS() {
   const gs = gameState.gs[0];
+  renderThrustBeam(gs);
   //renderHalo(gs);
   renderLightningHalo(gs);
   //drawLightning(100, 100, 500, 300, 10, 30, 0x00FF00);
@@ -1452,6 +1514,67 @@ function renderGS() {
 
   gs.sprite.clear();
   gs.sprite.circle(screenPos.x, screenPos.y, radiusPx).fill(0x000000);
+}
+
+function triggerThrustBeam(gs, thrustNx, thrustNy) {
+  const screenPos = worldToScreen(gs.x, gs.y);
+  const beamDirX = -thrustNx;
+  const beamDirY = -thrustNy;
+
+  const beamLengthPx =
+    Math.min(app.screen.width, app.screen.height) * THRUST_BEAM_LENGTH_SCREEN_RATIO;
+  const gsWidthPx = gs.radiusRatio * app.screen.width * 2;
+  const startWidthPx = gsWidthPx;
+  const endWidthPx = gsWidthPx * THRUST_BEAM_FINAL_WIDTH_MULTIPLIER;
+
+  gs.thrustBeamEffect = {
+    startX: screenPos.x,
+    startY: screenPos.y,
+    endX: screenPos.x + beamDirX * beamLengthPx,
+    endY: screenPos.y + beamDirY * beamLengthPx,
+    startWidth: startWidthPx,
+    endWidth: endWidthPx,
+    activeUntil: performance.now() + THRUST_BEAM_DURATION_MS
+  };
+}
+
+function renderThrustBeam(gs) {
+  const g = gs.thrustBeam;
+  g.clear();
+
+  const effect = gs.thrustBeamEffect;
+  if (!effect) return;
+  if (performance.now() > effect.activeUntil) {
+    gs.thrustBeamEffect = null;
+    return;
+  }
+
+  const dx = effect.endX - effect.startX;
+  const dy = effect.endY - effect.startY;
+  const len = Math.hypot(dx, dy);
+  if (len === 0) return;
+
+  const nx = dx / len;
+  const ny = dy / len;
+  const px = -ny;
+  const py = nx;
+
+  const startHalf = effect.startWidth * 0.5;
+  const endHalf = effect.endWidth * 0.5;
+
+  const x1 = effect.startX + px * startHalf;
+  const y1 = effect.startY + py * startHalf;
+  const x2 = effect.startX - px * startHalf;
+  const y2 = effect.startY - py * startHalf;
+  const x3 = effect.endX - px * endHalf;
+  const y3 = effect.endY - py * endHalf;
+  const x4 = effect.endX + px * endHalf;
+  const y4 = effect.endY + py * endHalf;
+
+  g.poly([x1, y1, x2, y2, x3, y3, x4, y4]).fill({
+    color: THRUST_BEAM_COLOR,
+    alpha: THRUST_BEAM_ALPHA
+  });
 }
 
 function renderLightningHalo(gs) {
@@ -1877,6 +2000,8 @@ function renderUI() {
 `Mass: ${(gs.mass / 1e6).toFixed(2)} kton
 Speed: ${speed.toFixed(1)} m/s (${(speed / C).toFixed(3)}c)
 Remaining Lifetime: ${formatTime(lifetime)}
+Maximum Mass: ${(gameState.maxMass / 1e6).toFixed(2)} kton
+Playing Time: ${formatTime(gameState.time)}
 Total SB M: ${((gameState.smallBodies.reduce((sum, o) => sum + o.mass, 0)) / 1e6).toFixed(2)} kton`;
 }
 
@@ -2048,9 +2173,16 @@ function estimateLifetime(mass) {
 }
 
 function formatTime(sec) {
-  const m = Math.floor(sec / 60);
-  const s = Math.round(sec % 60);
-  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  const totalSeconds = Math.max(0, Math.floor(sec));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (hours > 0) {
+    return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+  }
+
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
 /*function gameOver() {
@@ -2061,6 +2193,7 @@ function formatTime(sec) {
 async function gameOver() {
   if (isGameOver) return;
   isGameOver = true;
+  gameState.maxMass = 0;
 
   stopThrust();
   //app.ticker.stop();
@@ -2075,7 +2208,8 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-function restartGame() {
+async function restartGame() {
+  await sleep(500);
   app.stage.removeChildren();
   explosionParticles.length = 0;
   gameOverOverlay = null;
@@ -2083,6 +2217,7 @@ function restartGame() {
 
   gameState = {
     time: 0,
+    maxMass: 0,
     nextBodyId: 1,
     gs: [],
     smallBodies: [],
