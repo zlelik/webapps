@@ -93,11 +93,11 @@
         document.getElementById('speaking_phrase').innerHTML = phraseToLearn + " (" + languageToLearn + ") - " + knownPhrase + " (" + knownLanguage + ")";
 
       var msgToLearn = new SpeechSynthesisUtterance();
-      msgToLearn.text = phraseToLearn;
+      msgToLearn.text = alert(removeEmojis(phraseToLearn));
       msgToLearn.lang = languageToLearn;
 
       var msgKnown = new SpeechSynthesisUtterance();
-      msgKnown.text = knownPhrase;
+      msgKnown.text = alert(removeEmojis(knownPhrase));
       msgKnown.lang = knownLanguage;
       var repeatCount = 0;
 
