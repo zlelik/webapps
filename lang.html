@@ -161,7 +161,7 @@
     function speakText(text, language) {
       logMsg("Start speaking text " + text + " in " + language);
       var msg = new SpeechSynthesisUtterance();
-      msg.text = text;
+      msg.text = removeEmojis(text);
       msg.lang = language;
       speechSynthesis.speak(msg);
       logMsg("Finish speaking text " + text + " in " + language);
@@ -239,6 +239,10 @@
       } else {
         return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}.${milliseconds}`;
       }
+    }
+
+	function removeEmojis(str) {
+      return str.replace(/\p{Extended_Pictographic}(\u200D\p{Extended_Pictographic})*/gu, '');
     }
   </script>
 </body>
