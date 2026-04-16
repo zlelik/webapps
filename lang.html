@@ -161,7 +161,7 @@
     function speakText(text, language) {
       logMsg("Start speaking text " + text + " in " + language);
       var msg = new SpeechSynthesisUtterance();
-      msg.text = removeEmojis(text);
+      msg.text = alert(removeEmojis(text));
       msg.lang = language;
       speechSynthesis.speak(msg);
       logMsg("Finish speaking text " + text + " in " + language);
