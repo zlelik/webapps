@@ -1972,9 +1972,30 @@ function initStartScreenController() {
   const startButton = document.getElementById("startGameButton");
   const exitButton = document.getElementById("exitGameButton");
   const fullscreenButton = document.getElementById("fullscreenGameButton");
+  const statsPanel = document.getElementById("gameStatsPanel");
 
-  if (!startScreen || !gameLayer || !gameHost || !startButton || !exitButton || !fullscreenButton) {
+  if (!startScreen || !gameLayer || !gameHost || !startButton || !exitButton || !fullscreenButton || !statsPanel) {
     return;
+  }
+
+  function updateStatsPanelLayout() {
+    const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
+    const isCompactViewport = viewportWidth > 0 && viewportWidth <= 640;
+
+    if (isCompactViewport) {
+      statsPanel.style.top = "58px";
+      statsPanel.style.right = "14px";
+      statsPanel.style.width = "min(220px, calc(100vw - 28px))";
+      statsPanel.style.fontSize = "13px";
+      statsPanel.style.lineHeight = "1.35";
+      return;
+    }
+
+    statsPanel.style.top = "10px";
+    statsPanel.style.right = "58px";
+    statsPanel.style.width = "220px";
+    statsPanel.style.fontSize = "14px";
+    statsPanel.style.lineHeight = "1.4";
   }
 
   function updateFullscreenButtonIcon() {
@@ -1982,6 +2003,7 @@ function initStartScreenController() {
     fullscreenButton.innerHTML = isFullscreen ? fullscreenExitSvg : fullscreenEnterSvg;
   }
 
+  updateStatsPanelLayout();
   updateFullscreenButtonIcon();
 
   let isLaunching = false;
@@ -2031,6 +2053,8 @@ function initStartScreenController() {
   exitButton.addEventListener("click", exitGame);
   fullscreenButton.addEventListener("click", toggleFullscreen);
   document.addEventListener("fullscreenchange", updateFullscreenButtonIcon);
+  document.addEventListener("fullscreenchange", updateStatsPanelLayout);
+  window.addEventListener("resize", updateStatsPanelLayout);
 }
 
 document.addEventListener("DOMContentLoaded", initStartScreenController);
