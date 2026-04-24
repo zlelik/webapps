@@ -161,11 +161,6 @@ const fragment = `
   }
 `;
 
-// --- UI ---
-const UI_WIDTH = 300;
-const UI_HEIGHT = 150;
-
-
 const SMALL_BODY_COLORS = [
   0x8B4513, // brown
   0xFF0000, // red
@@ -198,7 +193,6 @@ let pointerThrustActive = false;
 const activeKeys = new Set();
 
 let isGameOver = false;
-let gameOverOverlay = null;
 let explosionParticles = [];
 
 let gameState = createInitialGameState();
@@ -226,7 +220,6 @@ function resetRuntimeState() {
   thrustDx = 0;
   thrustDy = 0;
   isGameOver = false;
-  gameOverOverlay = null;
   explosionParticles = [];
   gameState = createInitialGameState();
   ui = {};
@@ -273,6 +266,15 @@ function stopPOSGame() {
 
   if (gameMountNode) {
     gameMountNode.replaceChildren();
+  }
+
+  const statsPanel = document.getElementById("gameStatsPanel");
+  if (statsPanel) {
+    statsPanel.textContent = "";
+  }
+  const gameOverDialog = document.getElementById("gameOverDialog");
+  if (gameOverDialog) {
+    gameOverDialog.style.display = "none";
   }
 
   clearSmallBodyTextureCache();
@@ -419,6 +421,7 @@ function isArrowKey(key) {
 }
 
 function onPointerDown(e) {
+  if (!shouldHandleGameplayPointerEvent(e)) return;
   e.preventDefault();
   pointerThrustActive = true;
   updatePointerThrustDirection(e);
@@ -426,6 +429,7 @@ function onPointerDown(e) {
 
 function onPointerMove(e) {
   if (!pointerThrustActive) return;
+  if (!shouldHandleGameplayPointerEvent(e)) return;
   e.preventDefault();
   updatePointerThrustDirection(e);
 }
@@ -433,6 +437,21 @@ function onPointerMove(e) {
 function onPointerUp() {
   pointerThrustActive = false;
   refreshKeyboardThrust();
+}
+
+function shouldHandleGameplayPointerEvent(e) {
+  const gameLayer = document.getElementById("gameLayer");
+  const gameHost = document.getElementById("gameHost");
+  if (!gameLayer || !gameHost) return false;
+  if (gameLayer.style.display === "none") return false;
+
+  const target = e.target;
+  if (!(target instanceof Element)) return false;
+
+  const isInsideGameHost = gameHost.contains(target);
+  if (!isInsideGameHost) return false;
+
+  return true;
 }
 
 function updatePointerThrustDirection(e) {
@@ -616,25 +635,17 @@ function computeStarCount() {
 }
 
 function createUI() {
-  ui.container = new PIXI.Container();
+  ui.statsPanel = document.getElementById("gameStatsPanel");
+  ui.gameOverDialog = document.getElementById("gameOverDialog");
+  ui.restartButton = document.getElementById("restartGameButton");
 
-  ui.bg = new PIXI.Graphics();
-  ui.bg.rect(0, 0, UI_WIDTH, UI_HEIGHT).fill({ color: 0x000000, alpha: 0.5 });
+  if (ui.gameOverDialog) {
+    ui.gameOverDialog.style.display = "none";
+  }
 
-  ui.text = new PIXI.Text({
-    text: "",
-    style: {
-      fill: 0xcccccc,
-      fontSize: 14
-    }
-  });
-
-  ui.text.x = 10;
-  ui.text.y = 10;
-
-  ui.container.addChild(ui.bg);
-  ui.container.addChild(ui.text);
-  app.stage.addChild(ui.container);
+  if (ui.restartButton) {
+    ui.restartButton.onclick = restartGame;
+  }
 }
 
 function createUniverseBorder() {
@@ -1717,67 +1728,25 @@ function updateExplosion(dt) {
 }
 
 function showGameOverOverlay() {
-  gameOverOverlay = new PIXI.Container();
-
-  const bg = new PIXI.Graphics()
-    .rect(0, 0, app.screen.width, app.screen.height)
-    .fill({ color: 0x000000, alpha: 0.7 });
-
-  const panel = new PIXI.Graphics()
-    .rect(-150, -80, 300, 160)
-    .fill(0x111111)
-    .stroke({ color: 0xffffff, width: 2 });
-
-  panel.x = app.screen.width / 2;
-  panel.y = app.screen.height / 2;
-
-  const title = new PIXI.Text({
-    text: "GAME OVER",
-    style: { fill: 0xffffff, fontSize: 28 }
-  });
-  title.anchor.set(0.5);
-  title.x = panel.x;
-  title.y = panel.y - 40;
-
-  const button = new PIXI.Graphics()
-    .rect(-60, -20, 120, 40)
-    .fill(0x333333)
-    .stroke({ color: 0xffffff });
-
-  button.x = panel.x;
-  button.y = panel.y + 40;
-  button.interactive = true;
-  button.cursor = "pointer";
-
-  const btnText = new PIXI.Text({
-    text: "Restart",
-    style: { fill: 0xffffff, fontSize: 16 }
-  });
-  btnText.anchor.set(0.5);
-  btnText.x = panel.x;
-  btnText.y = panel.y + 40;
-
-  button.on("pointerdown", restartGame);
-
-  gameOverOverlay.addChild(bg, panel, title, button, btnText);
-  app.stage.addChild(gameOverOverlay);
+  if (ui.gameOverDialog) {
+    ui.gameOverDialog.style.display = "flex";
+  }
 }
 
 function renderUI() {
   const gs = gameState.gs[0];
-  ui.container.x = app.screen.width - UI_WIDTH - 10;
-  ui.container.y = 10;
-
   const speed = Math.hypot(gs.vx, gs.vy);
   const lifetime = estimateLifetime(gs.mass);
 
-  ui.text.text =
+  if (ui.statsPanel) {
+    ui.statsPanel.textContent =
 `Mass: ${(gs.mass / 1e6).toFixed(2)} kton
 Speed: ${speed.toFixed(1)} m/s (${(speed / C).toFixed(3)}c)
 Remaining Lifetime: ${formatTime(lifetime)}
 Maximum Mass: ${(gameState.maxMass / 1e6).toFixed(2)} kton
 Playing Time: ${formatTime(gameState.time)}`;
-// Total SB M: ${((gameState.smallBodies.reduce((sum, o) => sum + o.mass, 0)) / 1e6).toFixed(2)} kton`;//keep it for debuging
+//Total SB M: ${((gameState.smallBodies.reduce((sum, o) => sum + o.mass, 0)) / 1e6).toFixed(2)} kton`;//keep it for debuging
+  }
 }
 
 function renderUniverseBorder() {
@@ -1976,8 +1945,10 @@ async function restartGame() {
   if (!app) return;
   app.stage.removeChildren();
   explosionParticles.length = 0;
-  gameOverOverlay = null;
   isGameOver = false;
+  if (ui.gameOverDialog) {
+    ui.gameOverDialog.style.display = "none";
+  }
 
   gameState = createInitialGameState();
 
