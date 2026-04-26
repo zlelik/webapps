@@ -1,5 +1,4 @@
 "use strict";
-alert("Program started");
 
 
 /******************************************************************
@@ -200,7 +199,6 @@ let gameState = createInitialGameState();
 
          
 let ui = {};
-let hasInstalledErrorAlerts = false;
 
 function createInitialGameState() {
   return {
@@ -1974,33 +1972,9 @@ function initStartScreenController() {
   const startButton = document.getElementById("startGameButton");
   const exitButton = document.getElementById("exitGameButton");
   const fullscreenButton = document.getElementById("fullscreenGameButton");
-  const statsPanel = document.getElementById("gameStatsPanel");
-  alert(`Start button obj: ${String(startButton)}`);
 
   if (!startScreen || !gameLayer || !gameHost || !startButton || !exitButton || !fullscreenButton) {
     return;
-  }
-
-  function updateStatsPanelLayout() {
-    if (!statsPanel) return;
-
-    const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
-    const isCompactViewport = viewportWidth > 0 && viewportWidth <= 640;
-
-    if (isCompactViewport) {
-      statsPanel.style.top = "58px";
-      statsPanel.style.right = "14px";
-      statsPanel.style.width = "min(220px, calc(100vw - 28px))";
-      statsPanel.style.fontSize = "13px";
-      statsPanel.style.lineHeight = "1.35";
-      return;
-    }
-
-    statsPanel.style.top = "10px";
-    statsPanel.style.right = "58px";
-    statsPanel.style.width = "220px";
-    statsPanel.style.fontSize = "14px";
-    statsPanel.style.lineHeight = "1.4";
   }
 
   function updateFullscreenButtonIcon() {
@@ -2008,7 +1982,6 @@ function initStartScreenController() {
     fullscreenButton.innerHTML = isFullscreen ? fullscreenExitSvg : fullscreenEnterSvg;
   }
 
-  updateStatsPanelLayout();
   updateFullscreenButtonIcon();
 
   let isLaunching = false;
@@ -2058,38 +2031,6 @@ function initStartScreenController() {
   exitButton.addEventListener("click", exitGame);
   fullscreenButton.addEventListener("click", toggleFullscreen);
   document.addEventListener("fullscreenchange", updateFullscreenButtonIcon);
-  document.addEventListener("fullscreenchange", updateStatsPanelLayout);
-  window.addEventListener("resize", updateStatsPanelLayout);
 }
 
-function installErrorAlerts() {
-  alert("error handler init started");
-  if (hasInstalledErrorAlerts) return;
-  hasInstalledErrorAlerts = true;
-
-  const originalConsoleError = console.error.bind(console);
-  console.error = (...args) => {
-    originalConsoleError(...args);
-    try {
-      alert(`[console.error]\n${args.map(String).join(" ")}`);
-    } catch (_) {}
-  };
-
-  window.addEventListener("error", (event) => {
-    try {
-      const message = event?.error?.stack || event?.message || "Unknown error";
-      alert(`[window.error]\n${message}`);
-    } catch (_) {}
-  });
-
-  window.addEventListener("unhandledrejection", (event) => {
-    try {
-      const reason = event?.reason?.stack || String(event?.reason || "Unknown promise rejection");
-      alert(`[unhandledrejection]\n${reason}`);
-    } catch (_) {}
-  });
-  alert("error handler init finished");
-}
-
-installErrorAlerts();
 document.addEventListener("DOMContentLoaded", initStartScreenController);
