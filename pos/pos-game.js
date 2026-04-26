@@ -199,6 +199,7 @@ let gameState = createInitialGameState();
 
          
 let ui = {};
+let hasInstalledErrorAlerts = false;
 
 function createInitialGameState() {
   return {
@@ -2059,4 +2060,32 @@ function initStartScreenController() {
   window.addEventListener("resize", updateStatsPanelLayout);
 }
 
+function installErrorAlerts() {
+  if (hasInstalledErrorAlerts) return;
+  hasInstalledErrorAlerts = true;
+
+  const originalConsoleError = console.error.bind(console);
+  console.error = (...args) => {
+    originalConsoleError(...args);
+    try {
+      alert(`[console.error]\n${args.map(String).join(" ")}`);
+    } catch (_) {}
+  };
+
+  window.addEventListener("error", (event) => {
+    try {
+      const message = event?.error?.stack || event?.message || "Unknown error";
+      alert(`[window.error]\n${message}`);
+    } catch (_) {}
+  });
+
+  window.addEventListener("unhandledrejection", (event) => {
+    try {
+      const reason = event?.reason?.stack || String(event?.reason || "Unknown promise rejection");
+      alert(`[unhandledrejection]\n${reason}`);
+    } catch (_) {}
+  });
+}
+
+installErrorAlerts();
 document.addEventListener("DOMContentLoaded", initStartScreenController);
