@@ -1,4 +1,5 @@
 "use strict";
+alert("Program started");
 
 
 /******************************************************************
@@ -1974,6 +1975,7 @@ function initStartScreenController() {
   const exitButton = document.getElementById("exitGameButton");
   const fullscreenButton = document.getElementById("fullscreenGameButton");
   const statsPanel = document.getElementById("gameStatsPanel");
+  alert(`Start button obj: ${String(startButton)}`);
 
   if (!startScreen || !gameLayer || !gameHost || !startButton || !exitButton || !fullscreenButton) {
     return;
@@ -2061,6 +2063,7 @@ function initStartScreenController() {
 }
 
 function installErrorAlerts() {
+  alert("error handler init started");
   if (hasInstalledErrorAlerts) return;
   hasInstalledErrorAlerts = true;
 
@@ -2085,6 +2088,7 @@ function installErrorAlerts() {
       alert(`[unhandledrejection]\n${reason}`);
     } catch (_) {}
   });
+  alert("error handler init finished");
 }
 
 installErrorAlerts();
