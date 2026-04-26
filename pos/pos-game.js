@@ -1974,11 +1974,13 @@ function initStartScreenController() {
   const fullscreenButton = document.getElementById("fullscreenGameButton");
   const statsPanel = document.getElementById("gameStatsPanel");
 
-  if (!startScreen || !gameLayer || !gameHost || !startButton || !exitButton || !fullscreenButton || !statsPanel) {
+  if (!startScreen || !gameLayer || !gameHost || !startButton || !exitButton || !fullscreenButton) {
     return;
   }
 
   function updateStatsPanelLayout() {
+    if (!statsPanel) return;
+
     const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
     const isCompactViewport = viewportWidth > 0 && viewportWidth <= 640;
 
