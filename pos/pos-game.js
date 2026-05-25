@@ -21,7 +21,7 @@ const INNER_FADE_RADIUS = 1; // start fading at GS radius
 const PHYSICS_FPS = 40;
 const PHYSICS_DT = 1 / PHYSICS_FPS;
 const THRUST_DELTA_MASS_EJECTION = M0 * 0.01;
-const THRUST_MASS_RATIO = 0.1;
+const THRUST_MASS_RATIO = 0.02;
 const THRUST_REPEAT_MS = 50;
 const THRUST_BEAM_LENGTH_SCREEN_RATIO = 1.5;
 const THRUST_BEAM_FINAL_WIDTH_MULTIPLIER = 2;
@@ -45,13 +45,13 @@ const HALO_BEAM_REFRESH_FPS = 5;
 const HALO_BEAM_REFRESH_INTERVAL = 1000 / HALO_BEAM_REFRESH_FPS;
 
 // --- Small bodies ---
-const TOTAL_SMALL_BODIES_MASS = 50 * M0;
-const SMALL_BODY_MIN_MASS = 0.001 * M0;
-const SMALL_BODY_MAX_MASS = 0.05 * M0;
-const SMALL_BODY_MIN_SPEED = 0.0001 * C;
-const SMALL_BODY_MAX_SPEED = 0.001 * C;
+const TOTAL_SMALL_BODIES_MASS = 25 * M0;
+const SMALL_BODY_MIN_MASS = 0.0005 * M0;
+const SMALL_BODY_MAX_MASS = 0.01 * M0;
+const SMALL_BODY_MIN_SPEED = 0.01 * C;
+const SMALL_BODY_MAX_SPEED = 0.1 * C;
 const SMALL_BODY_INFLUENCE_RADIUS_MULT = 7;
-const SMALL_BODY_DENSITY = 1e-14; // kg/m³
+const SMALL_BODY_DENSITY = 0.07*1e-14; // kg/m³
 
 const GROUP_GENERATORS = [
   { name: "disk",    weight: 1, color: 0x00FF00, create: createDiskGroup },// green
@@ -104,12 +104,13 @@ const fragment = `
   out vec4 finalColor;
 
   uniform sampler2D uTexture;
-  uniform vec2 uUvMin;    
-  uniform vec2 uUvMax;    
-  uniform float uAspect;  
+  uniform vec2 uUvMin;
+  uniform vec2 uUvMax;
+  uniform float uAspect;
   uniform float uHeight;  // Add this new variable for screen height
   uniform float uRadius;  // This is now in pixels
   uniform float uEnabled;
+  uniform vec2 uCenter;   // GS position in screenUV space
 
   void main(void) {
     vec2 uv = vTextureCoord;
@@ -117,9 +118,9 @@ const fragment = `
     if (uEnabled > 0.5) {
       // 1. Normalize UV
       vec2 screenUV = (uv - uUvMin) / (uUvMax - uUvMin);
-      
-      // 2. Center of the screen
-      vec2 center = vec2(0.5, 0.5);
+
+      // 2. Center of the GS in screenUV space (computed from filter frame vs screen center)
+      vec2 center = uCenter;
       vec2 diff = screenUV - center;
 
       // 3. Fix aspect ratio
@@ -161,11 +162,6 @@ const fragment = `
   }
 `;
 
-// --- UI ---
-const UI_WIDTH = 300;
-const UI_HEIGHT = 150;
-
-
 const SMALL_BODY_COLORS = [
   0x8B4513, // brown
   0xFF0000, // red
@@ -198,7 +194,6 @@ let pointerThrustActive = false;
 const activeKeys = new Set();
 
 let isGameOver = false;
-let gameOverOverlay = null;
 let explosionParticles = [];
 
 let gameState = createInitialGameState();
@@ -226,7 +221,6 @@ function resetRuntimeState() {
   thrustDx = 0;
   thrustDy = 0;
   isGameOver = false;
-  gameOverOverlay = null;
   explosionParticles = [];
   gameState = createInitialGameState();
   ui = {};
@@ -275,6 +269,15 @@ function stopPOSGame() {
     gameMountNode.replaceChildren();
   }
 
+  const statsPanel = document.getElementById("gameStatsPanel");
+  if (statsPanel) {
+    statsPanel.textContent = "";
+  }
+  const gameOverDialog = document.getElementById("gameOverDialog");
+  if (gameOverDialog) {
+    gameOverDialog.style.display = "none";
+  }
+
   clearSmallBodyTextureCache();
   gameMountNode = null;
   resetRuntimeState();
@@ -301,6 +304,7 @@ async function initPixi(mountNode) {
     backgroundColor: 0x000000,
     antialias: true
   });
+  app.stage.sortableChildren = true;
   mountNode.appendChild(app.canvas);
 }
 
@@ -320,9 +324,10 @@ function initGame() {
     uUvMin: { value: [0, 0], type: 'vec2<f32>' },
     uUvMax: { value: [1, 1], type: 'vec2<f32>' },
     uAspect: { value: 1.0, type: 'f32' },
-    uHeight: { value: 1.0, type: 'f32' },   // Add height variable
-    uRadius: { value: gsRadiusPx, type: 'f32' }, // Set radius in pixels
+    uHeight: { value: 1.0, type: 'f32' },
+    uRadius: { value: gsRadiusPx, type: 'f32' },
     uEnabled: { value: 0.0, type: 'f32' },
+    uCenter: { value: [0.5, 0.5], type: 'vec2<f32>' },
   });
 
   /* ----------- FILTER ----------- */
@@ -334,18 +339,40 @@ function initGame() {
   grLensingFilter.apply = function(filterManager, input, output, clearMode) {
     const uvs = input.uvs;
 
-    this.resources.grLensingUniforms.uniforms.uUvMin[0] = uvs.x0; 
-    this.resources.grLensingUniforms.uniforms.uUvMin[1] = uvs.y0; 
-    this.resources.grLensingUniforms.uniforms.uUvMax[0] = uvs.x2; 
-    this.resources.grLensingUniforms.uniforms.uUvMax[1] = uvs.y2; 
+    this.resources.grLensingUniforms.uniforms.uUvMin[0] = uvs.x0;
+    this.resources.grLensingUniforms.uniforms.uUvMin[1] = uvs.y0;
+    this.resources.grLensingUniforms.uniforms.uUvMax[0] = uvs.x2;
+    this.resources.grLensingUniforms.uniforms.uUvMax[1] = uvs.y2;
 
-    const width = input.frame.width;
-    const height = input.frame.height;
-    
-    this.resources.grLensingUniforms.uniforms.uAspect = width / height;
-    
-    // Pass the real height to the shader
-    this.resources.grLensingUniforms.uniforms.uHeight = height; 
+    // Always use screen dimensions for correct pixel-space calculations
+    const screenW = app.screen.width;
+    const screenH = app.screen.height;
+    this.resources.grLensingUniforms.uniforms.uAspect = screenW / screenH;
+    this.resources.grLensingUniforms.uniforms.uHeight = screenH;
+
+    // Compute GS screen-center position in screenUV space.
+    // screenUV is normalized within the filter frame, so the screen center maps to:
+    //   centerU = (screenW/2 - frame.x) / frame.width
+    //   centerV = (screenH/2 - frame.y) / frame.height
+    const frameX = input.frame.x;
+    const frameY = input.frame.y;
+    const frameW = input.frame.width;
+    const frameH = input.frame.height;
+
+    const gsX = gameState?.gs?.[0]?.x || 0.00001;//avoid division by zero in xSign calculation when GS is exactly at x=0, which can happen in early game. This is a hack but it works without causing noticeable issues.
+    const gsY = gameState?.gs?.[0]?.y || 0.00001;//avoid division by zero in ySign calculation when GS is exactly at y=0, which can happen in early game. This is a hack but it works without causing noticeable issues.
+    const xSign = gsX/Math.abs(gsX);//it can be -1 (left) or +1 (right) indicating GS on left or right side of the screen, respectively.
+    const ySign = gsY/Math.abs(gsY);//it can be -1 (top) or +1 (bottom) indicating GS on top or bottom half of the screen, respectively.
+    // If the GS is on the left half of the screen, we need to flip the x coordinate because of how the filter samples the texture
+    // This is why this term "(1 - xSign)/2 + xSign *" is added to the centerU0 calculation - it flips the coordinate around the center of the screen when xSign is -1 (GS on left side)
+    const centerU0 = (1 - xSign)/2 + xSign * (screenW / 2 - frameX) / frameW;//(screenW / 2 - frameX) / frameW;
+    const centerU1 = (1 - ySign)/2 + ySign * (screenH / 2 - frameY) / frameH;//(screenH / 2 - frameY) / frameH;
+
+    //console.log(`frameW: ${frameW}, frameH: ${frameH}, frameX: ${frameX}, frameY: ${frameY}, screenW: ${screenW}, screenH: ${screenH}`);
+    //console.log(`centerU0: ${centerU0}, centerU1: ${centerU1}`);
+
+    this.resources.grLensingUniforms.uniforms.uCenter[0] = centerU0;//(screenW / 2 - frameX) / frameW;
+    this.resources.grLensingUniforms.uniforms.uCenter[1] = centerU1;//(screenH / 2 - frameY) / frameH;
 
     filterManager.applyFilter(this, input, output, clearMode);
   };
@@ -419,6 +446,7 @@ function isArrowKey(key) {
 }
 
 function onPointerDown(e) {
+  if (!shouldHandleGameplayPointerEvent(e)) return;
   e.preventDefault();
   pointerThrustActive = true;
   updatePointerThrustDirection(e);
@@ -426,6 +454,7 @@ function onPointerDown(e) {
 
 function onPointerMove(e) {
   if (!pointerThrustActive) return;
+  if (!shouldHandleGameplayPointerEvent(e)) return;
   e.preventDefault();
   updatePointerThrustDirection(e);
 }
@@ -433,6 +462,21 @@ function onPointerMove(e) {
 function onPointerUp() {
   pointerThrustActive = false;
   refreshKeyboardThrust();
+}
+
+function shouldHandleGameplayPointerEvent(e) {
+  const gameLayer = document.getElementById("gameLayer");
+  const gameHost = document.getElementById("gameHost");
+  if (!gameLayer || !gameHost) return false;
+  if (gameLayer.style.display === "none") return false;
+
+  const target = e.target;
+  if (!(target instanceof Element)) return false;
+
+  const isInsideGameHost = gameHost.contains(target);
+  if (!isInsideGameHost) return false;
+
+  return true;
 }
 
 function updatePointerThrustDirection(e) {
@@ -561,10 +605,14 @@ function createGS() {
   gameState.gs.push(gs);
   gameState.maxMass = gs.mass;
   
+  gs.halo.zIndex = 10;
+  gs.thrustBeam.zIndex = 20;
+  gs.lightningHalo.zIndex = 30;
+  gs.sprite.zIndex = 100; // always on top of small bodies and other overlays
   app.stage.addChild(gs.halo);
   app.stage.addChild(gs.thrustBeam);
-  app.stage.addChild(gs.sprite);
   app.stage.addChild(gs.lightningHalo);
+  app.stage.addChild(gs.sprite);
 }
 
 
@@ -572,6 +620,7 @@ function createStars() {
   starsContainer = new PIXI.Container();
   starsGraphics = new PIXI.Graphics();
 
+  starsContainer.zIndex = 0;
   starsContainer.addChild(starsGraphics);
   app.stage.addChild(starsContainer);
 
@@ -616,29 +665,22 @@ function computeStarCount() {
 }
 
 function createUI() {
-  ui.container = new PIXI.Container();
+  ui.statsPanel = document.getElementById("gameStatsPanel");
+  ui.gameOverDialog = document.getElementById("gameOverDialog");
+  ui.restartButton = document.getElementById("restartGameButton");
 
-  ui.bg = new PIXI.Graphics();
-  ui.bg.rect(0, 0, UI_WIDTH, UI_HEIGHT).fill({ color: 0x000000, alpha: 0.5 });
+  if (ui.gameOverDialog) {
+    ui.gameOverDialog.style.display = "none";
+  }
 
-  ui.text = new PIXI.Text({
-    text: "",
-    style: {
-      fill: 0xcccccc,
-      fontSize: 14
-    }
-  });
-
-  ui.text.x = 10;
-  ui.text.y = 10;
-
-  ui.container.addChild(ui.bg);
-  ui.container.addChild(ui.text);
-  app.stage.addChild(ui.container);
+  if (ui.restartButton) {
+    ui.restartButton.onclick = restartGame;
+  }
 }
 
 function createUniverseBorder() {
   universeBorder = new PIXI.Graphics();
+  universeBorder.zIndex = 60;
   app.stage.addChild(universeBorder);
 }
 
@@ -715,6 +757,7 @@ function createSmallBodySprite(mass, colorArg = null) {
 
   sprite.anchor.set(0.5);
   sprite.tint = color;
+  sprite.zIndex = 50;
   return sprite;
 }
 
@@ -1688,6 +1731,7 @@ function triggerGSExplosion(gs) {
 
     g.x = center.x;
     g.y = center.y;
+    g.zIndex = 70;
 
     explosionParticles.push({
       gfx: g,
@@ -1717,67 +1761,25 @@ function updateExplosion(dt) {
 }
 
 function showGameOverOverlay() {
-  gameOverOverlay = new PIXI.Container();
-
-  const bg = new PIXI.Graphics()
-    .rect(0, 0, app.screen.width, app.screen.height)
-    .fill({ color: 0x000000, alpha: 0.7 });
-
-  const panel = new PIXI.Graphics()
-    .rect(-150, -80, 300, 160)
-    .fill(0x111111)
-    .stroke({ color: 0xffffff, width: 2 });
-
-  panel.x = app.screen.width / 2;
-  panel.y = app.screen.height / 2;
-
-  const title = new PIXI.Text({
-    text: "GAME OVER",
-    style: { fill: 0xffffff, fontSize: 28 }
-  });
-  title.anchor.set(0.5);
-  title.x = panel.x;
-  title.y = panel.y - 40;
-
-  const button = new PIXI.Graphics()
-    .rect(-60, -20, 120, 40)
-    .fill(0x333333)
-    .stroke({ color: 0xffffff });
-
-  button.x = panel.x;
-  button.y = panel.y + 40;
-  button.interactive = true;
-  button.cursor = "pointer";
-
-  const btnText = new PIXI.Text({
-    text: "Restart",
-    style: { fill: 0xffffff, fontSize: 16 }
-  });
-  btnText.anchor.set(0.5);
-  btnText.x = panel.x;
-  btnText.y = panel.y + 40;
-
-  button.on("pointerdown", restartGame);
-
-  gameOverOverlay.addChild(bg, panel, title, button, btnText);
-  app.stage.addChild(gameOverOverlay);
+  if (ui.gameOverDialog) {
+    ui.gameOverDialog.style.display = "flex";
+  }
 }
 
 function renderUI() {
   const gs = gameState.gs[0];
-  ui.container.x = app.screen.width - UI_WIDTH - 10;
-  ui.container.y = 10;
-
   const speed = Math.hypot(gs.vx, gs.vy);
   const lifetime = estimateLifetime(gs.mass);
 
-  ui.text.text =
+  if (ui.statsPanel) {
+    ui.statsPanel.textContent =
 `Mass: ${(gs.mass / 1e6).toFixed(2)} kton
 Speed: ${speed.toFixed(1)} m/s (${(speed / C).toFixed(3)}c)
 Remaining Lifetime: ${formatTime(lifetime)}
 Maximum Mass: ${(gameState.maxMass / 1e6).toFixed(2)} kton
 Playing Time: ${formatTime(gameState.time)}`;
-// Total SB M: ${((gameState.smallBodies.reduce((sum, o) => sum + o.mass, 0)) / 1e6).toFixed(2)} kton`;//keep it for debuging
+//Total SB M: ${((gameState.smallBodies.reduce((sum, o) => sum + o.mass, 0)) / 1e6).toFixed(2)} kton`;//keep it for debuging
+  }
 }
 
 function renderUniverseBorder() {
@@ -1976,8 +1978,10 @@ async function restartGame() {
   if (!app) return;
   app.stage.removeChildren();
   explosionParticles.length = 0;
-  gameOverOverlay = null;
   isGameOver = false;
+  if (ui.gameOverDialog) {
+    ui.gameOverDialog.style.display = "none";
+  }
 
   gameState = createInitialGameState();
 
