@@ -54,6 +54,19 @@
     function sleep (time) {
       return new Promise((resolve) => setTimeout(resolve, time));
     }
+
+    // Strip emoji (smileys, pictographs, flags, skin tones, etc.) while keeping
+    // all normal pronounceable characters from any language (é, à, бвгд, 漢字, ...).
+    function removeEmoji(text) {
+      if (!text) return text;
+      return text
+        .replace(/[\u{1F1E6}-\u{1F1FF}]/gu, '')        // regional indicators (flag pairs)
+        .replace(/[\u{1F3FB}-\u{1F3FF}]/gu, '')        // skin-tone modifiers
+        .replace(/\p{Extended_Pictographic}/gu, '')    // emoji & pictographs
+        .replace(/[‍︎️]/g, '')          // ZWJ + variation selectors
+        .replace(/\s{2,}/g, ' ')                       // collapse gaps left behind
+        .trim();
+    }
     // Load saved values from local storage
     window.onload = function() {
       document.getElementById('phrases_to_learn').value = localStorage.getItem('phrases_to_learn') || '';
@@ -93,11 +106,11 @@
         document.getElementById('speaking_phrase').innerHTML = phraseToLearn + " (" + languageToLearn + ") - " + knownPhrase + " (" + knownLanguage + ")";
 
       var msgToLearn = new SpeechSynthesisUtterance();
-      msgToLearn.text = phraseToLearn;
+      msgToLearn.text = removeEmoji(phraseToLearn);
       msgToLearn.lang = languageToLearn;
 
       var msgKnown = new SpeechSynthesisUtterance();
-      msgKnown.text = knownPhrase;
+      msgKnown.text = removeEmoji(knownPhrase);
       msgKnown.lang = knownLanguage;
       var repeatCount = 0;
 
@@ -161,7 +174,7 @@
     function speakText(text, language) {
       logMsg("Start speaking text " + text + " in " + language);
       var msg = new SpeechSynthesisUtterance();
-      msg.text = text;
+      msg.text = removeEmoji(text);
       msg.lang = language;
       speechSynthesis.speak(msg);
       logMsg("Finish speaking text " + text + " in " + language);
