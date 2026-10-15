@@ -50,6 +50,14 @@
   - One word with its own text: <abbr title="Fundamental Theorem of Calculus">FTC</abbr>.
   - Tooltip text is plain text. Answer options of questions never get tooltips.
 
+  Listening:
+  - <fr say>Je mange une pomme.</fr> gets a small speaker button. The browser reads the text aloud with
+    its own voice, in the language of the element. Nothing is sent to a server. A second tap stops it.
+
+  Reading counter:
+  - A post counts as read when it stands at the top of the screen for 10 seconds. The number on the pin
+    button is the highest post that was read. It never goes down. Settings can set it back to zero.
+
   Notes:
   - Posts appear in the order of the list. "part 2 of 4" in the post header is counted
     from neighbouring posts with the same subject and block.
@@ -108,20 +116,24 @@ button:disabled{cursor:default}
 .logo{font-size:19px;font-weight:800;letter-spacing:-.3px;line-height:1.1;white-space:nowrap;
   min-width:0;overflow:hidden;text-overflow:ellipsis}
 .nav{display:flex;gap:2px;flex:none}
-.nav button{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;
-  min-width:52px;height:46px;border-radius:12px;padding:2px 4px}
+.nav button{position:relative;display:flex;align-items:center;justify-content:center;
+  min-width:44px;height:44px;border-radius:12px}
 .nav button:hover{background:var(--hover)}
 .nav button:active{transform:scale(.95)}
-.nav .ico{font-size:19px;line-height:1.1}
-.nav .txt{font-size:10.5px;color:var(--muted);margin-top:1px}
+.nav .ico{font-size:21px;line-height:1}
 .badge{position:absolute;top:0;right:2px;min-width:19px;height:19px;padding:0 4px;border-radius:10px;
   background:var(--accent);color:var(--on-accent);font-size:10.5px;font-weight:700;line-height:19px;text-align:center;
   border:2px solid var(--surface)}
 .badge[hidden]{display:none}
 .progress{height:2px;background:var(--border)}
 .progress i{display:block;height:100%;transform:scaleX(0);transform-origin:0 50%;background:var(--accent)}
-@media (max-width:400px){.logo{font-size:17.5px}.nav button{min-width:47px}.topbar-in{padding-left:12px}}
-@media (max-width:340px){.logo{font-size:15px}.nav button{min-width:42px}.nav .txt{font-size:9.5px}}
+/* on a narrow screen the name steps back and the six buttons share the whole width */
+@media (max-width:460px){
+  .logo{display:none}
+  .nav{flex:1;justify-content:space-between}
+  .topbar-in{padding:0 8px}
+}
+@media (max-width:340px){.nav button{min-width:40px}.nav .ico{font-size:19px}}
 
 /* ---------- feed ---------- */
 .feed{max-width:520px;margin:0 auto;padding:calc(var(--top-h) + env(safe-area-inset-top)) 0 40px}
@@ -135,9 +147,10 @@ button:disabled{cursor:default}
 /* ---------- subject buttons ---------- */
 .subjects{display:flex;gap:8px;overflow-x:auto;padding:14px 12px 12px;scrollbar-width:none}
 .subjects::-webkit-scrollbar{display:none}
-.subj{flex:none;display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 14px 0 11px;
-  border-radius:999px;background:var(--chip);border:1px solid var(--border);font-size:13.5px;font-weight:600;
+.subj{flex:none;display:inline-flex;align-items:center;gap:5px;height:38px;min-width:46px;padding:0 11px;
+  border-radius:999px;background:var(--chip);border:1px solid var(--border);font-size:13px;font-weight:700;
   white-space:nowrap}
+.subj .n:empty{display:none}
 .subj:hover{background:var(--hover)}
 .subj:active{transform:scale(.97)}
 .subj .e{font-size:16px;line-height:1}
@@ -222,6 +235,14 @@ button:disabled{cursor:default}
 .act.bump svg{animation:bump .35s ease-out}
 @keyframes bump{0%{transform:scale(1)}40%{transform:scale(1.35)}100%{transform:scale(1)}}
 @media (prefers-reduced-motion:reduce){.act.bump svg{animation:none}.nav button:active,.subj:active{transform:none}}
+.say{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;margin:0 2px -7px;
+  border-radius:50%;color:inherit;opacity:.75;vertical-align:baseline}
+.say svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.say:hover{opacity:1;background:rgba(127,127,127,.2)}
+.say.on{opacity:1;background:rgba(127,127,127,.28)}
+.say.on svg{animation:sayPulse 1s ease-in-out infinite}
+@keyframes sayPulse{0%,100%{opacity:1}50%{opacity:.45}}
+@media (prefers-reduced-motion:reduce){.say.on svg{animation:none}}
 .cap{padding:6px 16px 16px;font-size:14.5px}
 .cap p{margin:0 0 8px}
 .cap p:last-child{margin:0}
@@ -317,6 +338,8 @@ mjx-container[jax="SVG"] > svg{overflow:visible;min-height:1px;min-width:1px}
 /* ".tex" in front makes this rule stronger than the renderer's own rule, so fresh and stored formulas look the same */
 .tex mjx-container[jax="SVG"][display="true"]{display:block;text-align:center;margin:.45em 0;
   overflow-x:auto;overflow-y:hidden;max-width:100%}
+/* a long formula is made smaller so that it always fits the screen, instead of being cut */
+.tex mjx-container[jax="SVG"] > svg{max-width:100%;height:auto}
 g[data-mml-node="merror"] > g{fill:red;stroke:red}
 g[data-mml-node="merror"] > rect[data-background]{fill:yellow;stroke:none}
 /* The rules below come from the formula renderer (MathJax). They are needed here because formulas taken
@@ -342,10 +365,12 @@ g[data-mml-node="mtable"] > g > svg{overflow:visible}
   <div class="topbar-in">
     <div class="logo" id="logo">Smarty Scrolls</div>
     <nav class="nav" aria-label="Page">
-      <button type="button" data-go="top"><span class="ico" aria-hidden="true">&#11014;&#65039;</span><span class="txt">Top</span></button>
-      <button type="button" data-go="bottom"><span class="ico" aria-hidden="true">&#11015;&#65039;</span><span class="txt">Bottom</span></button>
-      <button type="button" data-go="resume"><span class="ico" aria-hidden="true">&#128205;</span><span class="txt">Resume</span><span class="badge" id="posBadge" hidden></span></button>
-      <button type="button" id="gearBtn" aria-haspopup="dialog"><span class="ico" aria-hidden="true">&#9881;&#65039;</span><span class="txt">Settings</span></button>
+      <button type="button" data-go="top" title="Top" aria-label="Top"><span class="ico" aria-hidden="true">&#11014;&#65039;</span></button>
+      <button type="button" data-go="bottom" title="Bottom" aria-label="Bottom"><span class="ico" aria-hidden="true">&#11015;&#65039;</span></button>
+      <button type="button" data-go="resume" title="Go on reading" aria-label="Go on reading"><span class="ico" aria-hidden="true">&#128205;</span><span class="badge" id="posBadge" hidden></span></button>
+      <button type="button" data-go="liked" title="Liked posts" aria-label="Liked posts"><span class="ico" aria-hidden="true">&#10084;&#65039;</span><span class="badge" id="likeBadge" hidden></span></button>
+      <button type="button" data-go="saved" title="Saved posts" aria-label="Saved posts"><span class="ico" aria-hidden="true">&#128278;</span><span class="badge" id="saveBadge" hidden></span></button>
+      <button type="button" id="gearBtn" aria-haspopup="dialog" title="Settings" aria-label="Settings"><span class="ico" aria-hidden="true">&#9881;&#65039;</span></button>
     </nav>
   </div>
   <div class="progress"><i id="progBar"></i></div>
@@ -380,8 +405,13 @@ g[data-mml-node="mtable"] > g > svg{overflow:visible}
   </section>
   <section class="sec">
     <h3>Progress</h3>
-    <p>The reading place, likes, saved posts and answers are kept for each set of posts.</p>
-    <button type="button" class="btn" id="resetBtn">Reset reading place and answers</button>
+    <p>A post counts as read when it stands at the top of the screen for 10 seconds. The number on the pin is the
+       highest post you read, and it never goes down. The counter, the likes, the saved posts and the answers are
+       kept for each set of posts.</p>
+    <div class="row">
+      <button type="button" class="btn" id="resetBtn">Set the read counter to zero</button>
+      <button type="button" class="btn" id="quizBtn">Clear all answers</button>
+    </div>
   </section>
   <section class="sec">
     <h3>Remove</h3>
@@ -412,7 +442,8 @@ g[data-mml-node="mtable"] > g > svg{overflow:visible}
  },
  "about": [
   "These are {{total}} sample posts. They show how the feed works.",
-  "Tap Like or double tap a card to like a post. Tap Save to keep it. Tap a subject above to jump to the next post of that kind. The page stores your reading place while you scroll.",
+  "Tap Like or double tap a card to like a post. Tap Save to keep it. The heart and the bookmark at the top jump to your liked and saved posts. Tap a picture above to jump to the next post of that kind.",
+  "A post counts as read after 10 seconds on the screen. The number on the pin is the highest post you read, and it never goes down. Tap the pin to go on where you stopped.",
   "A word with a dotted line has a short explanation. Point at it on a computer, or tap it on a phone."
  ],
  "figures": {
@@ -628,6 +659,7 @@ Object.defineProperty(e,"__esModule",{value:!0}),e.mhchemParser=void 0;var r=fun
   /* ================================================================ dom == */
   function $(id) { return document.getElementById(id); }
   var feed = $("feed"), topbar = $("topbar"), badge = $("posBadge"), progBar = $("progBar"), toastEl = $("toast");
+  var likeBadge = $("likeBadge"), saveBadge = $("saveBadge");
   var dlg = $("settings"), gear = $("gearBtn"), box = $("jsonIn"), fileIn = $("fileIn"), msg = $("setMsg");
   var LETTER = ["A", "B", "C", "D", "E", "F", "G", "H"];
   var HEART = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7.2-4.5-9.3-8.6C1 9 2.6 5.3 6.1 4.4c2-.5 4 .3 5 1.9 1-1.6 3-2.4 5-1.9 3.5.9 5.1 4.6 3.4 8C19.2 16.5 12 21 12 21z"/></svg>';
@@ -637,7 +669,7 @@ Object.defineProperty(e,"__esModule",{value:!0}),e.mhchemParser=void 0;var r=fun
   /* ============================================================== state == */
   var GEN = 0;       // grows each time a set of posts is shown; old background work stops
   var S = null;      // the set of posts shown now
-  var ready = false, armed = false, timer = 0;
+  var ready = false;
 
   function hash(s) {
     var h = 2166136261;
@@ -650,11 +682,12 @@ Object.defineProperty(e,"__esModule",{value:!0}),e.mhchemParser=void 0;var r=fun
   }
   function loadState(key) {
     var st = jGet(KEY.state + key, null) || {};
-    return { pos: st.pos || null, like: st.like || {}, save: st.save || {}, quiz: st.quiz || {} };
+    /* "read" is the highest post number that was read; the older form kept a place, which is used as a start */
+    return { read: st.read || (st.pos && st.pos.n) || 0, like: st.like || {}, save: st.save || {}, quiz: st.quiz || {} };
   }
   function saveState() {
     if (!S || !CAN_STORE) return;
-    jSet(KEY.state + S.key, { pos: S.st.pos, like: S.st.like, save: S.st.save, quiz: S.st.quiz, t: Date.now() });
+    jSet(KEY.state + S.key, { read: S.st.read, like: S.st.like, save: S.st.save, quiz: S.st.quiz, t: Date.now() });
   }
 
   /* ============================================================== check == */
@@ -721,9 +754,10 @@ Object.defineProperty(e,"__esModule",{value:!0}),e.mhchemParser=void 0;var r=fun
   /* ============================================================= render == */
   function show(data, source, after) {
     GEN++;
-    if (timer) { clearTimeout(timer); timer = 0; }
-    armed = false;
     ready = false;
+    stopSpeech();
+    dwell = {};
+    atPost = null;
     var key = feedKey(data);
     S = { data: data, source: source, key: key, st: loadState(key), gen: GEN, after: after || "" };
     build();
@@ -846,14 +880,18 @@ Object.defineProperty(e,"__esModule",{value:!0}),e.mhchemParser=void 0;var r=fun
         acts + cap(p.cap, p.tags) + "</article>";
     }
     function panel() {
+      /* only the picture, so that all subjects fit on a phone screen; the name is in the title */
       var buttons = Object.keys(subjects).map(function (key) {
-        return '<button class="subj" type="button" data-jump="' + esc(key) + '"><span class="e" aria-hidden="true">' +
-          (subjects[key].emoji || "") + '</span><span>' + txt(subjects[key].label || key) + "</span></button>";
+        var name = esc(String(subjects[key].label || key));
+        return '<button class="subj" type="button" data-jump="' + esc(key) + '" title="' + name + '" aria-label="' + name +
+          '"><span class="e" aria-hidden="true">' + (subjects[key].emoji || "") + "</span></button>";
       }).join("");
-      if (questions) buttons += '<button class="subj" type="button" data-jump="quiz"><span class="e" aria-hidden="true">&#10067;</span>' +
-        '<span data-lbl="quiz">Questions</span></button>';
-      buttons += '<button class="subj" type="button" data-jump="saved"><span class="e" aria-hidden="true">&#128278;</span>' +
-        '<span data-lbl="saved">Saved</span></button>';
+      if (questions) buttons += '<button class="subj" type="button" data-jump="quiz" title="Questions" aria-label="Questions">' +
+        '<span class="e" aria-hidden="true">&#10067;</span><span class="n" data-lbl="quiz"></span></button>';
+      buttons += '<button class="subj" type="button" data-jump="liked" title="Liked posts" aria-label="Liked posts">' +
+        '<span class="e" aria-hidden="true">&#10084;&#65039;</span><span class="n" data-lbl="liked"></span></button>';
+      buttons += '<button class="subj" type="button" data-jump="saved" title="Saved posts" aria-label="Saved posts">' +
+        '<span class="e" aria-hidden="true">&#128278;</span><span class="n" data-lbl="saved"></span></button>';
       var notice = "";
       if (S.source === "session") notice = '<div class="notice warn"><span>Your posts are shown for this visit only, ' +
         "because the browser could not store them.</span></div>";
@@ -1035,6 +1073,7 @@ Object.defineProperty(e,"__esModule",{value:!0}),e.mhchemParser=void 0;var r=fun
       while (el.firstChild) sp.appendChild(el.firstChild);
       el.parentNode.replaceChild(sp, el);
       sp.className = "fr";
+      if (el.hasAttribute("say")) sp.setAttribute("say", "");
     });
     [].slice.call(root.querySelectorAll(".fr:not([lang])")).forEach(function (el) { el.setAttribute("lang", "fr"); });
     [].slice.call(root.querySelectorAll("article [title]")).forEach(function (el) {
@@ -1042,6 +1081,20 @@ Object.defineProperty(e,"__esModule",{value:!0}),e.mhchemParser=void 0;var r=fun
       var t = el.getAttribute("title").trim();
       el.removeAttribute("title");                          /* no second, slow tooltip from the browser */
       if (t) { el.classList.add("g"); el.setAttribute("data-g", t); }
+    });
+    /* a phrase marked with "say" gets a small button that reads it aloud */
+    [].slice.call(root.querySelectorAll("[say]")).forEach(function (el) {
+      el.removeAttribute("say");
+      var text = (el.textContent || "").replace(/\s+/g, " ").trim();
+      if (!text || el.closest(".opt") || !el.parentNode) return;
+      var b = el.ownerDocument.createElement("button");
+      b.type = "button";
+      b.className = "say";
+      b.setAttribute("data-say", text);
+      b.setAttribute("data-lang", (el.getAttribute("lang") || "fr").split("-")[0]);
+      b.setAttribute("aria-label", "Listen");
+      b.innerHTML = SAY;
+      el.parentNode.insertBefore(b, el.nextSibling);
     });
     [].slice.call(root.querySelectorAll("article.post")).forEach(function (post) {
       var T = has(terms, post.getAttribute("data-s")) ? terms[post.getAttribute("data-s")] : null;
@@ -1071,6 +1124,57 @@ Object.defineProperty(e,"__esModule",{value:!0}),e.mhchemParser=void 0;var r=fun
         list.slice(0, 40).join(", ") + (list.length > 40 ? ", and " + (list.length - 40) + " more." : "."));
     });
     return out;
+  }
+
+  /* ============================================================== speech == */
+  /* The browser reads a marked phrase aloud with its own voice. Nothing is sent to a server. */
+  var SAY = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.3h3.3L12 5.4v13.2L7.3 14.7H4z"/>' +
+    '<path d="M15.6 9.2a4 4 0 0 1 0 5.6"/><path d="M18.3 6.6a7.6 7.6 0 0 1 0 10.8"/></svg>';
+  var voices = [], sayOn = null;
+  function loadVoices() { try { voices = window.speechSynthesis.getVoices() || []; } catch (e) { voices = []; } }
+  if (window.speechSynthesis) {
+    loadVoices();
+    try { window.speechSynthesis.addEventListener("voiceschanged", loadVoices); }
+    catch (e) { window.speechSynthesis.onvoiceschanged = loadVoices; }
+  }
+  function voiceFor(lang) {
+    var want = String(lang || "fr").slice(0, 2).toLowerCase(), best = null;
+    for (var i = 0; i < voices.length; i++) {
+      var v = voices[i], vl = String(v.lang || "").replace("_", "-").toLowerCase();
+      if (vl.slice(0, 2) !== want) continue;
+      if (!best) { best = v; continue; }
+      var bl = String(best.lang || "").replace("_", "-").toLowerCase();
+      var better = (v.localService && !best.localService) ||
+        (v.localService === best.localService && vl === want + "-" + want && bl !== want + "-" + want);
+      if (better) best = v;
+    }
+    return best;
+  }
+  function stopSpeech() {
+    if (sayOn) { sayOn.classList.remove("on"); sayOn = null; }
+    try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch (e) { /* nothing to stop */ }
+  }
+  function speak(btn) {
+    var synth = window.speechSynthesis;
+    if (!synth || typeof window.SpeechSynthesisUtterance !== "function") {
+      toast("This browser cannot read text aloud.");
+      return;
+    }
+    var again = btn === sayOn;
+    stopSpeech();
+    if (again) return;                                  /* a second tap stops the voice */
+    if (!voices.length) loadVoices();
+    var lang = btn.getAttribute("data-lang") || "fr";
+    var v = voiceFor(lang), u = new window.SpeechSynthesisUtterance(btn.getAttribute("data-say") || "");
+    u.lang = (v && v.lang) || (lang.length === 2 ? lang + "-" + lang.toUpperCase() : lang);
+    if (v) u.voice = v;
+    u.rate = 0.9;
+    u.onend = u.onerror = function () { if (sayOn === btn) { btn.classList.remove("on"); sayOn = null; } };
+    btn.classList.add("on");
+    sayOn = btn;
+    try { synth.speak(u); }
+    catch (e) { stopSpeech(); toast("The voice of this browser could not start."); return; }
+    if (!v) toast("This device has no voice for that language, so the words may sound wrong.");
   }
 
   /* ============================================================= tooltip == */
@@ -1150,7 +1254,6 @@ Object.defineProperty(e,"__esModule",{value:!0}),e.mhchemParser=void 0;var r=fun
       if (p.classList.contains("quiz")) paint(p);
     });
     labels();
-    showBadge();
   }
 
   /* ============================================================ formulas == */
@@ -1247,10 +1350,10 @@ Object.defineProperty(e,"__esModule",{value:!0}),e.mhchemParser=void 0;var r=fun
     ready = true;
     setProgress(0, false);
     onFrame();
-    showBadge();
+    labels();
     if (S.after) { toast(S.after); S.after = ""; }
-    else if (S.st.pos && S.el[S.st.pos.id] && nOf(S.el[S.st.pos.id]) > 1)
-      toast("Your place is saved at post " + nOf(S.el[S.st.pos.id]) + ". Tap Resume to go there.");
+    else if (S.st.read > 0 && S.st.read < S.total)
+      toast("You read " + S.st.read + " posts. Tap the pin at the top to go on.");
     else hideToast();
   }
 
@@ -1264,36 +1367,32 @@ Object.defineProperty(e,"__esModule",{value:!0}),e.mhchemParser=void 0;var r=fun
     }
     return { i: i, offset: Math.round(y - P[i].getBoundingClientRect().top) };
   }
-  function arm(e) {
-    if (!ready || (dlg && dlg.open)) return;
-    if (e && e.target && e.target.closest && e.target.closest(".topbar")) return;
-    armed = true;
+  /* A post counts as read when it stands at the top of the screen for 10 seconds in total.
+     The counter holds the highest post number that was read, so it never goes down. */
+  var READ_MS = 10000, dwell = {}, atPost = null, atSince = 0;
+  function countTime() {
+    var now = Date.now(), was = atPost, since = atSince;
+    atPost = null; atSince = now;
+    if (!S || !ready || !S.posts.length || document.hidden || (dlg && dlg.open)) return;
+    var i = anchor().i, id = S.posts[i].getAttribute("data-id");
+    atPost = id;
+    if (was === id && since) {
+      dwell[id] = (dwell[id] || 0) + Math.min(now - since, 3 * READ_MS);
+      if (dwell[id] >= READ_MS) markRead(i + 1);
+    }
   }
-  addEventListener("wheel", arm, { passive: true });
-  addEventListener("touchmove", arm, { passive: true });
-  addEventListener("keydown", function (e) {
-    var k = e.key;
-    if (k === "ArrowDown" || k === "ArrowUp" || k === "PageDown" || k === "PageUp" || k === " " || k === "Home" || k === "End") arm(e);
-  });
-  addEventListener("mousedown", function (e) { if (e.target === document.documentElement) arm(e); });
-
-  function savePos() {
-    timer = 0;
-    if (!armed || !S || !S.posts.length) return;
-    var a = anchor();
-    S.st.pos = { id: S.posts[a.i].getAttribute("data-id"), n: a.i + 1, offset: a.offset };
+  setInterval(countTime, 1000);
+  document.addEventListener("visibilitychange", function () { countTime(); if (document.hidden) stopSpeech(); });
+  function markRead(n) {
+    if (!S || n <= (S.st.read || 0)) return;
+    S.st.read = n;
     saveState();
-    showBadge();
-  }
-  function showBadge() {
-    var rec = S && S.st.pos, n = rec && S.el[rec.id] ? S.posts.indexOf(S.el[rec.id]) + 1 : 0;
-    if (n) { badge.textContent = n; badge.hidden = false; } else { badge.hidden = true; }
+    setBadge(badge, Math.min(n, S.total || 0));
   }
   var ticking = false;
   function onFrame() {
     var max = document.documentElement.scrollHeight - window.innerHeight;
     if (ready) setProgress(max > 0 ? window.scrollY / max : 0, false);
-    if (armed && !timer) timer = setTimeout(savePos, 250);
   }
   addEventListener("scroll", function () {
     if (tipOn) hideTip();
@@ -1301,30 +1400,25 @@ Object.defineProperty(e,"__esModule",{value:!0}),e.mhchemParser=void 0;var r=fun
     ticking = true;
     requestAnimationFrame(function () { ticking = false; onFrame(); });
   }, { passive: true });
-  addEventListener("pagehide", savePos);
-  document.addEventListener("visibilitychange", function () { if (document.visibilityState === "hidden") savePos(); });
 
-  function jump(y) {
-    armed = false;
-    if (timer) { clearTimeout(timer); timer = 0; }
-    window.scrollTo(0, Math.max(0, Math.round(y)));
-  }
+  function jump(y) { window.scrollTo(0, Math.max(0, Math.round(y))); }
   function yOf(el, offset) { return el.getBoundingClientRect().top + window.scrollY - line() + (offset || 0); }
   function goPost(el, text) { jump(yOf(el, 0)); if (text) toast(text); }
   function nOf(el) { return S.posts.indexOf(el) + 1; }
   function goResume() {
-    var rec = S.st.pos;
-    if (!rec) { toast("No saved place yet. Scroll the feed and the page will store your place."); return; }
-    var el = S.el[rec.id];
-    if (!el) { toast("Your saved place is not in these posts."); return; }
-    jump(yOf(el, rec.offset));
-    toast("Back at post " + nOf(el) + " of " + S.total + ".");
+    var read = Math.min(S.st.read || 0, S.total);
+    if (!read) { toast("Nothing is read yet. A post counts as read after 10 seconds on the screen."); return; }
+    var n = Math.min(read + 1, S.total);
+    goPost(S.posts[n - 1], n > read ? "Post " + n + " of " + S.total + ". The first post you did not read." :
+      "Post " + n + " of " + S.total + ". This is the last post.");
   }
 
   /* ============================================================= clicks == */
   document.addEventListener("click", function (e) {
     var t = e.target;
     if (!t.closest) return;
+    var say = t.closest(".say");
+    if (say && feed.contains(say)) { speak(say); return; }
     var gl = t.closest(".g");
     if (gl && feed.contains(gl)) {                /* a word or term with a tooltip: a tap shows it, a second tap hides it */
       if (lastPointer === "mouse") { if (tipOn !== gl) showTip(gl); }
@@ -1341,6 +1435,7 @@ Object.defineProperty(e,"__esModule",{value:!0}),e.mhchemParser=void 0;var r=fun
       if (!ready) { toast("One moment, the formulas are still being drawn."); return; }
       if (go === "bottom") jump(document.documentElement.scrollHeight);
       else if (go === "resume") goResume();
+      else jumpTo(go);
       return;
     }
     if (!S || !feed.contains(t)) return;
@@ -1366,10 +1461,15 @@ Object.defineProperty(e,"__esModule",{value:!0}),e.mhchemParser=void 0;var r=fun
     var P = S.posts, a = anchor(), start = a.offset >= 0 ? a.i + 1 : a.i, hit = null;
     for (var k = 0; k < P.length; k++) {
       var p = P[(start + k) % P.length], id = p.getAttribute("data-id");
-      var ok = kind === "saved" ? !!S.st.save[id] : kind === "quiz" ? p.classList.contains("quiz") : p.getAttribute("data-s") === kind;
+      var ok = kind === "saved" ? !!S.st.save[id] : kind === "liked" ? !!S.st.like[id]
+        : kind === "quiz" ? p.classList.contains("quiz") : p.getAttribute("data-s") === kind;
       if (ok) { hit = p; break; }
     }
-    if (!hit) { toast(kind === "saved" ? "No saved posts yet. Tap Save under a post to keep it." : "Nothing found."); return; }
+    if (!hit) {
+      toast(kind === "saved" ? "No saved posts yet. Tap Save under a post to keep it."
+        : kind === "liked" ? "No liked posts yet. Tap Like under a post." : "Nothing found.");
+      return;
+    }
     goPost(hit, "Post " + nOf(hit) + " of " + S.total + ".");
   }
 
@@ -1391,7 +1491,7 @@ Object.defineProperty(e,"__esModule",{value:!0}),e.mhchemParser=void 0;var r=fun
   var tap = { t: 0, x: 0, y: 0, el: null };
   document.addEventListener("pointerup", function (e) {
     var media = e.target.closest ? e.target.closest(".media") : null;
-    if (!media || media.closest(".quiz") || !feed.contains(media) || e.target.closest(".g")) return;
+    if (!media || media.closest(".quiz") || !feed.contains(media) || e.target.closest(".g, .say")) return;
     if (e.pointerType === "mouse" && e.button !== 0) return;
     var now = Date.now();
     if (tap.el === media && now - tap.t < 380 && Math.abs(e.clientX - tap.x) < 30 && Math.abs(e.clientY - tap.y) < 30) {
@@ -1427,17 +1527,22 @@ Object.defineProperty(e,"__esModule",{value:!0}),e.mhchemParser=void 0;var r=fun
     if (st && why) post.querySelector(".verdict").textContent = st.ok ? "Correct." : "Not correct. The correct answer is " + LETTER[right] + ".";
   }
   function labels() {
-    var doneQ = 0, good = 0, nq = 0, nsaved = 0;
+    var doneQ = 0, good = 0, nq = 0, nsaved = 0, nliked = 0;
     S.posts.forEach(function (p) {
       var id = p.getAttribute("data-id");
       if (p.classList.contains("quiz")) { nq++; if (S.st.quiz[id]) { doneQ++; if (S.st.quiz[id].ok) good++; } }
       if (S.st.save[id]) nsaved++;
+      if (S.st.like[id]) nliked++;
     });
-    var q = feed.querySelector('[data-lbl="quiz"]');
-    if (q) q.textContent = doneQ ? "Questions " + good + "/" + nq : "Questions";
-    var s = feed.querySelector('[data-lbl="saved"]');
-    if (s) s.textContent = nsaved ? "Saved " + nsaved : "Saved";
+    count('[data-lbl="quiz"]', doneQ ? good + "/" + nq : "");
+    count('[data-lbl="saved"]', nsaved ? String(nsaved) : "");
+    count('[data-lbl="liked"]', nliked ? String(nliked) : "");
+    setBadge(badge, Math.min(S.st.read || 0, S.total || 0));
+    setBadge(likeBadge, nliked);
+    setBadge(saveBadge, nsaved);
   }
+  function count(sel, text) { var el = feed.querySelector(sel); if (el) el.textContent = text; }
+  function setBadge(el, n) { if (!el) return; el.textContent = n; el.hidden = !n; }
 
   /* ============================================================ settings == */
   /* The box always holds the JSON of the posts shown now, unless the user has changed it
@@ -1669,13 +1774,21 @@ Object.defineProperty(e,"__esModule",{value:!0}),e.mhchemParser=void 0;var r=fun
     r.readAsText(f);
   });
   $("resetBtn").addEventListener("click", function () {
-    if (!window.confirm("Reset the reading place and all answers for the posts shown now? Likes and saved posts stay.")) return;
-    S.st.pos = null;
+    if (!window.confirm("Set the read counter back to zero? Likes, saved posts and answers stay.")) return;
+    S.st.read = 0;
+    dwell = {};
+    saveState();
+    labels();
+    closeSettings();
+    toast("The read counter is zero again.");
+  });
+  $("quizBtn").addEventListener("click", function () {
+    if (!window.confirm("Clear all answers of the questions? The read counter, the likes and the saved posts stay.")) return;
     S.st.quiz = {};
     saveState();
     paintAll();
     closeSettings();
-    toast("The reading place and the answers are reset.");
+    toast("All answers are cleared.");
   });
   $("wipeBtn").addEventListener("click", function () {
     if (!window.confirm("Delete your posts and all progress from this browser? The page then shows the sample posts.")) return;
